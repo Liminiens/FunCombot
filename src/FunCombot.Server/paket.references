@@ -1,3 +1,9 @@
 Microsoft.AspNetCore.Blazor.Server
 Microsoft.AspNetCore.App
 FSharp.Core
+Serilog 
+Serilog.AspNetCore 
+Serilog.Exceptions
+Serilog.Extensions.Logging 
+Serilog.Sinks.Console 
+Destructurama.FSharp.NetCore

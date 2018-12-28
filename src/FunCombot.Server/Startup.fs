@@ -6,6 +6,10 @@ open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.AspNetCore.Http
 open Microsoft.Extensions.DependencyInjection
+open Microsoft.Extensions.Configuration
+open Serilog
+open Serilog.Events
+open Serilog.Exceptions
 open FunCombot
 
 type Startup() =
@@ -21,13 +25,39 @@ type Startup() =
         |> ignore
 
 module Program =
-
+    
+    let exitCode = 0
+    let errorExitCode = 1
+    
     [<EntryPoint>]
     let main args =
-        WebHost
-            .CreateDefaultBuilder(args)
-            .UseKestrel()
-            .UseStartup<Startup>()
-            .Build()
-            .Run()
-        0
+        let loggerConfiguration = new LoggerConfiguration()
+        Log.Logger <-
+            loggerConfiguration
+                .MinimumLevel.Debug()
+                #if DEBUG
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                #endif
+                .Destructure.FSharpTypes()
+                .Enrich.WithExceptionDetails()
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger() :> ILogger
+        try
+            try
+                Log.Information("Starting web host")                   
+                WebHost
+                    .CreateDefaultBuilder(args)
+                    .UseKestrel()
+                    .UseSerilog()
+                    .UseStartup<Startup>()
+                    .Build()
+                    .Run()
+
+                exitCode
+            with
+                | :? Exception as ex ->
+                    Log.Fatal(ex, "Host terminated unexpectedly") |> ignore
+                    errorExitCode
+        finally
+            Log.CloseAndFlush() |> ignore

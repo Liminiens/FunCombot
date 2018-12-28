@@ -9,5 +9,8 @@
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="wwwroot\styles" />
+  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

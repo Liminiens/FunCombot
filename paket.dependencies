@@ -13,3 +13,9 @@ nuget Bolero.Build
 
 # Force <2.2 to prevent this issue: https://github.com/aspnet/Razor/issues/2553
 nuget Microsoft.AspNetCore.Razor.Design ~> 2.1.0
+nuget Serilog 
+nuget Serilog.AspNetCore 
+nuget Serilog.Exceptions
+nuget Serilog.Extensions.Logging 
+nuget Serilog.Sinks.Console 
+nuget Destructurama.FSharp.NetCore
