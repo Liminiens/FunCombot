@@ -7,6 +7,8 @@ paket.exe
 paket.bootstrapper.exe
 .paket/.store
 
+wwwroot/scripts/*
+
 # User-specific files
 *.suo
 *.user

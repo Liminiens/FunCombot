@@ -6,11 +6,22 @@
     <RunArguments>blazor serve</RunArguments>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Common.fs" />
+    <Compile Include="Javascript.fs" />
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>
+  
   <ItemGroup>
-    <Folder Include="wwwroot\styles" />
+    <Content Remove="wwwroot\scripts\*" />
+    <Content Include="frontend\index.js" />
+    <Content Include="frontend\charting\index.js" />
+    <Content Include="webpack.config.js" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
+  </ItemGroup>
+  
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
