@@ -10,6 +10,7 @@ open Microsoft.Extensions.Configuration
 open Serilog
 open Serilog.Events
 open Serilog.Exceptions
+open Bolero.Remoting
 open FunCombot
 
 type Startup() =
@@ -21,7 +22,8 @@ type Startup() =
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     member this.Configure(app: IApplicationBuilder, env: IHostingEnvironment) =
-        app.UseBlazor<Client.Startup>()
+        app.UseRemoting()
+           .UseBlazor<Client.Startup>()
         |> ignore
 
 module Program =

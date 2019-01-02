@@ -3,6 +3,7 @@ namespace FunCombot.Client
 open Microsoft.AspNetCore.Blazor.Builder
 open Microsoft.AspNetCore.Blazor.Hosting
 open Microsoft.Extensions.DependencyInjection
+open Bolero.Remoting
 
 type Startup() =
 
@@ -10,7 +11,7 @@ type Startup() =
         ()
 
     member __.Configure(app: IBlazorApplicationBuilder) =
-        app.AddComponent<Main.Container.MainComponent>("#main")
+        app.AddComponent<Main.MainComponent.MainComponent>("#main")
 
 module Program =
 

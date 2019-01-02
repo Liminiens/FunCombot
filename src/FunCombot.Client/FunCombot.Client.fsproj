@@ -11,11 +11,12 @@
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>
-  
   <ItemGroup>
-    <Content Remove="wwwroot\scripts\*" />
-    <Content Include="frontend\index.js" />
-    <Content Include="frontend\charting\index.js" />
+    <Content Include="frontend\styles\index.scss" />
+    <Content Include="frontend\templates\chat_info.html" />
+    <Content Include="frontend\scripts\index.ts" />
+    <Content Include="frontend\scripts\charting\index.ts" />
+    <Content Include="postcss.config.js" />
     <Content Include="webpack.config.js" />
   </ItemGroup>
   
