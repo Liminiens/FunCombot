@@ -13,6 +13,7 @@ type ApplicationPage =
       Chat of name: string * section: string    
 
 module LineChartComponent =
+    open Bolero.Html
     open Charting
     
     let chartData = {
@@ -37,7 +38,7 @@ module LineChartComponent =
         
         override this.View model dispatch =
             concat [     
-                div [attr.id "test"] []
+                div [attr.id "test"; attr.classes ["chart"]] []
                 button [ on.click (fun e -> Charting.createChart "test" chartData)] [text "Elo"]             
             ] 
 
@@ -73,6 +74,8 @@ module HeaderComponent =
             | "fsharp-chat"  -> Some Fsharpchat
             | "ms-stack-jobs" -> Some MicrosoftStackJobs
             | _ -> None
+    
+    type HeaderTemplate = Template<"""frontend/templates/header.html""">
         
     type HeaderComponentMessage =
         | SetChat of ChatName
@@ -82,48 +85,34 @@ module HeaderComponent =
         CurrentChat: ChatName;
     }
     
+    let headerTemplate = HeaderTemplate()
+    
     let update message model =
         match message with
         | ChangeChat chat ->
             { model with CurrentChat = chat }
         | SetChat chat ->
-            { model with CurrentChat = chat }  
+            { model with CurrentChat = chat }
+            
     type HeaderComponent() =
         inherit ElmishComponent<HeaderComponentModel, HeaderComponentMessage>()
         
         override this.View model dispatch =
-            header ["class" => "ui inverted vertical segment"] [
-               div ["class" => "ui center aligned grid"] [
-                   div ["class" => "twelve wide column"] [
-                       nav ["class" => "ui stackable inverted menu"] [
-                           div ["class" => "header item"] [
-                               a [MainComponent.router.HRef Home] [text "FunCombot"]
-                           ]
-                           div ["class" => "ui dropdown item" ] [
-                               text "Chats"
-                               i ["class" => "dropdown icon"] []
-                               div ["class" => "menu transition hidden"] [
-                                   forEach getUnionCases<ChatName> ^fun (case, name) ->
-                                       a ["class" => "item"; on.click ^fun ev ->
-                                           if model.CurrentChat <> case then dispatch (ChangeChat(case))] [
-                                           text case.DisplayName
-                                       ]
-                               ]
-                           ]
-                           div ["class" => "item"] [
-                               div ["class" => "text"] [
-                                   text model.CurrentChat.DisplayName
-                               ]
-                           ]
-                       ] 
-                   ]
-               ]     
-            ]
+            let dropDown =
+                forEach getUnionCases<ChatName> ^fun (case, name) ->
+                    a ["class" => "item"; on.click ^fun ev ->
+                        if model.CurrentChat <> case then dispatch (ChangeChat(case))] [ text case.DisplayName ]
+            headerTemplate
+                .HeaderItem(text "FunCombot")
+                .DropdownItems(dropDown)
+                .ChatName(text model.CurrentChat.DisplayName)
+                .Elt()
 
 module ChatComponent =    
     open LineChartComponent
 
-    type ChatInfoTemplate = Template<"""frontend/templates/chat_info.html""">
+    type MainTemplate = Template<"""frontend/templates/main.html""">
+    type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
     
     type SectionName =
         | Overview
@@ -159,43 +148,44 @@ module ChatComponent =
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
         
-        let chatInfo = ChatInfoTemplate()
+        let chatOverviewTemplate = ChatOverviewTemplate()
+        let mainTemplate = MainTemplate()
         
         override this.View model dispatch =
-            main ["class" => "ui stackable relaxed centered grid"] [
-                div ["class" => "two wide column"] [   
-                    div ["class" => "ui hidden divider"] []
-                    div ["class" => "ui fluid secondary vertical pointing menu"] [
-                        forEach getUnionCases<SectionName>
-                            ^fun (case, name) ->
-                                a [attr.classes [yield "item"; if model.CurrentSection = case then yield "active";]
-                                   on.click ^fun ev ->
-                                       if model.CurrentSection <> case then dispatch (ChangeSection(case))] [
-                                    text name
-                                ]
-                    ]
-                ]
-                div ["class" => "ten wide column"] [
-                    cond model.CurrentSection ^fun section ->
-                        match section with
-                        | Overview ->
-                            chatInfo
-                                .ActiveCount(string 123)
-                                .UsersCountGraph(
-                                     ecomp<LineChartComponent,_,_> () ^fun message -> dispatch DoNothing                   
-                                )
-                                .Elt()
-                        | Users ->
-                            div [] [
-                                h1 ["class" => "ui header"] [text "Users"]
-                            ]
-                ]
-            ]           
+            let menu =
+                forEach getUnionCases<SectionName> ^fun (case, name) ->
+                    a [attr.classes [yield "item"; if model.CurrentSection = case then yield "active";]
+                       on.click ^fun ev ->
+                           if model.CurrentSection <> case then dispatch (ChangeSection(case))] [
+                        text name
+                    ]       
+            
+            let chatOverview =
+                chatOverviewTemplate
+                    .ActiveCount(string 123)
+                    .UsersCountGraph(
+                         ecomp<LineChartComponent,_,_> () ^fun message -> dispatch DoNothing                   
+                    )
+                    .Elt()
+            
+            let content =
+                cond model.CurrentSection ^fun section ->
+                    match section with
+                    | Overview ->
+                        chatOverview
+                    | Users ->
+                        div [] [
+                            h1 ["class" => "ui header"] [text "Users"]
+                        ]
+                        
+            mainTemplate.SectionMenu(menu).Content(content).Elt()
             
 module MainComponent = 
     open System
     open HeaderComponent
     open ChatComponent
+    
+    type RootTemplate = Template<"frontend/templates/root.html">
       
     type MainComponentModel = {
         Page: ApplicationPage
@@ -205,12 +195,13 @@ module MainComponent =
     
     type MainComponentMessage =
         | DoNothing
-        | SetPage of ApplicationPage
-        | InitPageFromRouteData of ApplicationPage
         | LogError of exn
+        | InitPageFromRouteData of ApplicationPage
+        | SetPage of ApplicationPage
         | HeaderComponentMessage of HeaderComponentMessage
         | ChatComponentMessage of ChatComponentMessage
-        | Print of string
+    
+    let rootTemplate = RootTemplate()
     
     let router: Router<ApplicationPage, MainComponentModel, MainComponentMessage> =
         Router.infer SetPage (fun m -> m.Page)
@@ -241,14 +232,12 @@ module MainComponent =
                         Cmd.ofMsg (HeaderComponentMessage(SetChat(chatName)));
                         Cmd.ofMsg (ChatComponentMessage(SetSection(sectionName)));
                     ]
+                    
             { model with Page = page }, command
         | SetPage page ->
             { model with Page = page }, []
         | LogError e ->
             eprintf "%O" e
-            model, []
-        | Print name ->
-            printfn "%s" name
             model, []
         | ChatComponentMessage message ->
             let command =
@@ -256,7 +245,7 @@ module MainComponent =
                 | ChangeSection section ->
                     Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
                 | _ ->
-                    Cmd.Empty
+                    []
                 
             { model with Chat = ChatComponent.update message model.Chat }, command
         | HeaderComponentMessage message ->
@@ -265,43 +254,47 @@ module MainComponent =
                 | ChangeChat chat ->
                     Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
                 | _ ->
-                    Cmd.Empty
+                    []
                 
             { model with Header = HeaderComponent.update message model.Header }, command
             
     let view model dispatch =
-        concat [
+        let header =
             ecomp<HeaderComponent,_,_> {
                 CurrentChat = model.Header.CurrentChat
             } ^fun message -> dispatch (HeaderComponentMessage(message))
-            div ["class" => "ui hidden divider"] []
+        let chatInfo =
             ecomp<ChatComponent,_,_> {
                 CurrentSection = model.Chat.CurrentSection
             } ^fun message -> dispatch (ChatComponentMessage(message))
-            footer [ ] [
-                
-            ]
-        ]
+            
+        rootTemplate
+            .Header(header)
+            .ChatInfo(chatInfo)
+            .Elt()
     
     type MainComponent() as this =
         inherit ProgramComponent<MainComponentModel, MainComponentMessage>()
+        
+        let getCurrentRoute() =
+            let path = Uri(this.UriHelper.GetAbsoluteUri()).AbsolutePath.Trim('/')
+            let route = router.setRoute path
+            printfn "%O" route
+            route
                     
         let createInitCommand() =               
             let msg = 
-                match this.GetCurrentRoute() with
+                match getCurrentRoute() with
                 | Some(SetPage(page)) ->
                     InitPageFromRouteData(page)
                 | Some(_)
                 | None ->
                     HeaderComponentMessage(ChangeChat(Dotnetruchat))
                     
-            Cmd.ofAsync SemanticUi.initJs () (fun _ -> msg) (fun exn -> LogError exn)
-            
-        member this.GetCurrentRoute() =
-            let path = Uri(this.UriHelper.GetAbsoluteUri()).AbsolutePath.Trim('/')
-            let route = router.setRoute path
-            printfn "%O" route
-            route   
+            Cmd.batch [
+                Cmd.ofMsg msg        
+                Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)
+            ]           
         
         override this.Program =
              Program.mkProgram (fun _ -> initModel, createInitCommand()) update view

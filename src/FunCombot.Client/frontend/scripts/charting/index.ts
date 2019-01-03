@@ -1,30 +1,29 @@
 import * as c3 from "c3";
 import {ChartConfiguration} from "c3";
 
-type IColumnData = {
+interface IColumnData  {
     name: string;
     data: Array<string | boolean | number | null>
 }
 
-type IAxis = {
+interface IAxis  {
     type: string,
     tick: {
         format: string
     }
 }
 
-type IAxisConfiguration = {
+interface IAxisConfiguration {
     x: IAxis
 }
 
-type IChartConfiguration = {
+interface IChartConfiguration {
     x?: string,
     columns: Array<IColumnData>,
     axis?: IAxisConfiguration
 }
 
 function convertToC3(bindTo: string, configuration: IChartConfiguration): ChartConfiguration {
-    console.log(configuration);
     const result = {
         bindto: bindTo,
         data: {
@@ -33,11 +32,9 @@ function convertToC3(bindTo: string, configuration: IChartConfiguration): ChartC
         },
         axis: configuration.axis
     };
-    console.log(result);
     return result;
 }
 
 export function drawChart(bindTo: string, data: IChartConfiguration): void {
-    const chart = c3.generate(convertToC3(bindTo, data));
-    chart.resize({width: 500, height: 300})
+    c3.generate(convertToC3(bindTo, data));
 }

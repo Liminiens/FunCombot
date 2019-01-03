@@ -13,7 +13,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="frontend\styles\index.scss" />
-    <Content Include="frontend\templates\chat_info.html" />
+    <Content Include="frontend\styles\_charting.scss" />
+    <Content Include="frontend\styles\_sizes.scss" />
+    <Content Include="frontend\templates\chat_overview.html" />
+    <Content Include="frontend\templates\root.html" />
+    <Content Include="frontend\templates\main.html" />
+    <Content Include="frontend\templates\header.html" />
     <Content Include="frontend\scripts\index.ts" />
     <Content Include="frontend\scripts\charting\index.ts" />
     <Content Include="postcss.config.js" />

@@ -1,0 +1,7 @@
+@import "sizes";
+
+.chart {
+  @include breakpoint(all) { 
+    height:300px;
+  }
+}
