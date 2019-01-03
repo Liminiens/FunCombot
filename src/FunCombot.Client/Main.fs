@@ -13,21 +13,32 @@ type ApplicationPage =
       Chat of name: string * section: string    
 
 module LineChartComponent =
-
+    open Charting
+    
+    let chartData = {
+        x = "x";
+        columns = [
+            { name = "x"; data = ["2013-01-01"; "2013-01-02"; "2013-01-03"; "2013-01-04"; "2013-01-05"; "2013-01-06"] };
+            { name = "data1"; data = [30; 200; 100; 400; 150; 250] };
+            { name = "data2"; data = [130; 200; 100; 200; 140; 30] };
+       ];
+       axis = {
+           x = {
+               ``type`` = "timeseries"
+               tick = {
+                    format = "%Y-%m-%d"
+               }
+           }
+       }
+    }
+    
     type LineChartComponent() =
         inherit ElmishComponent<unit, unit>()
         
         override this.View model dispatch =
-            concat [
-                div ["class" => "ui segment"] [            
-                    div [attr.id "test"] []
-                    button [ on.click (fun e -> Charting.createChart "test" {
-                        columns = [
-                          ["data1"; 30; 200; 100; 400; 150; 250];
-                          ["data2"; 50; 20; 10; 40; 15; 25];           
-                        ]
-                    })] [text "Elo"]
-                ]
+            concat [     
+                div [attr.id "test"] []
+                button [ on.click (fun e -> Charting.createChart "test" chartData)] [text "Elo"]             
             ] 
 
 module HeaderComponent =
@@ -53,8 +64,18 @@ module HeaderComponent =
             | Pronet -> "pro-net"
             | Fsharpchat -> "fsharp-chat"
             | MicrosoftStackJobs -> "ms-stack-jobs"
-    
+        
+        static member FromString(name: string) =
+            match name with
+            | "dotnet-ru-chat" -> Some Dotnetruchat
+            | "net-talks"  -> Some NetTalks
+            | "pro-net" -> Some Pronet
+            | "fsharp-chat"  -> Some Fsharpchat
+            | "ms-stack-jobs" -> Some MicrosoftStackJobs
+            | _ -> None
+        
     type HeaderComponentMessage =
+        | SetChat of ChatName
         | ChangeChat of ChatName
     
     type HeaderComponentModel = {
@@ -63,9 +84,10 @@ module HeaderComponent =
     
     let update message model =
         match message with
-        | ChangeChat(chat) ->
+        | ChangeChat chat ->
             { model with CurrentChat = chat }
-    
+        | SetChat chat ->
+            { model with CurrentChat = chat }  
     type HeaderComponent() =
         inherit ElmishComponent<HeaderComponentModel, HeaderComponentMessage>()
         
@@ -99,6 +121,8 @@ module HeaderComponent =
             ]
 
 module ChatComponent =    
+    open LineChartComponent
+
     type ChatInfoTemplate = Template<"""frontend/templates/chat_info.html""">
     
     type SectionName =
@@ -108,8 +132,15 @@ module ChatComponent =
             match this with
             | Overview -> "overview"
             | Users -> "users"
-        
+        static member FromString(name: string) =
+            match name with
+            | "overview" -> Some Overview
+            | "users"  -> Some Users
+            | _ -> None
+            
     type ChatComponentMessage =
+        | DoNothing
+        | SetSection of SectionName
         | ChangeSection of SectionName
         
     type ChatComponentModel = {
@@ -118,6 +149,10 @@ module ChatComponent =
     
     let update message model =
         match message with
+        | DoNothing ->
+            model
+        | SetSection name ->
+            { model with CurrentSection = name }  
         | ChangeSection name ->
             { model with CurrentSection = name }   
     
@@ -146,7 +181,9 @@ module ChatComponent =
                         | Overview ->
                             chatInfo
                                 .ActiveCount(string 123)
-                                .ActiveGraph(div [] [text "Eh"])
+                                .UsersCountGraph(
+                                     ecomp<LineChartComponent,_,_> () ^fun message -> dispatch DoNothing                   
+                                )
                                 .Elt()
                         | Users ->
                             div [] [
@@ -156,6 +193,7 @@ module ChatComponent =
             ]           
             
 module MainComponent = 
+    open System
     open HeaderComponent
     open ChatComponent
       
@@ -168,6 +206,7 @@ module MainComponent =
     type MainComponentMessage =
         | DoNothing
         | SetPage of ApplicationPage
+        | SetPageFromRoute of ApplicationPage
         | LogError of exn
         | HeaderComponentMessage of HeaderComponentMessage
         | ChatComponentMessage of ChatComponentMessage
@@ -190,6 +229,19 @@ module MainComponent =
         match message with
         | DoNothing ->
             model, []
+        | SetPageFromRoute page ->
+            let command = 
+                match page with
+                | Home ->
+                    []
+                | Chat(name, section) ->
+                    let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(name))
+                    let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
+                    Cmd.batch [
+                        Cmd.ofMsg (HeaderComponentMessage(SetChat(chatName)));
+                        Cmd.ofMsg (ChatComponentMessage(SetSection(sectionName)));
+                    ]
+            { model with Page = page }, command
         | SetPage page ->
             { model with Page = page }, []
         | LogError e ->
@@ -202,13 +254,17 @@ module MainComponent =
             let command =
                match message with
                 | ChangeSection section ->
-                    Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName))) 
+                    Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                | _ -> Cmd.Empty
+                
             { model with Chat = ChatComponent.update message model.Chat }, command
         | HeaderComponentMessage message ->
             let command =
                match message with
                 | ChangeChat chat ->
-                    Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName))) 
+                    Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
+                | _ -> Cmd.Empty
+                
             { model with Header = HeaderComponent.update message model.Header }, command
             
     let view model dispatch =
@@ -225,15 +281,26 @@ module MainComponent =
             ]
         ]
     
-    type MainComponent() =
+    type MainComponent() as this =
         inherit ProgramComponent<MainComponentModel, MainComponentMessage>()
-        
-        let initCommand =
-            Cmd.ofAsync
-                SemanticUi.initJs ()
-                (fun _ -> HeaderComponentMessage(ChangeChat(Dotnetruchat)))
-                (fun exn -> LogError exn)          
+                    
+        let initCommand() =               
+            let msg = 
+                match this.GetCurrentRoute() with
+                | Some(SetPage(page)) ->
+                    SetPageFromRoute(page)
+                | Some(_)
+                | None ->
+                    HeaderComponentMessage(ChangeChat(Dotnetruchat))
+                    
+            Cmd.ofAsync SemanticUi.initJs () (fun _ -> msg) (fun exn -> LogError exn)
+            
+        member this.GetCurrentRoute() =
+            let path = Uri(this.UriHelper.GetAbsoluteUri()).AbsolutePath.Trim('/')
+            let route = router.setRoute path
+            printfn "%O" route
+            route   
         
         override this.Program =
-             Program.mkProgram (fun _ -> initModel, initCommand) update view
-             |> Program.withRouter router 
+             Program.mkProgram (fun _ -> initModel, initCommand()) update view
+             |> Program.withRouter router

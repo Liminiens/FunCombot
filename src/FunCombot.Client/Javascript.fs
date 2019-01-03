@@ -31,21 +31,33 @@ module SemanticUi =
 module Charting =
     let getChartFunctionName name = 
         name |> (sprintf "charting.%s" >> FunctionName.Create)
-    
-    type Data = {
-        columns: obj list list
+        
+    type IAxisTick = {
+        format: string
     }
     
-    type ChartData = {
-        bindto: string;
-        data: Data;
+    type IAxisData = {
+        ``type``: string
+        tick: IAxisTick
+    }
+    
+    type IAxis = {
+        x: IAxisData
+    }
+    
+    type IColumnData = {
+        name: string
+        data: obj list
+    }
+    
+    type IChartConfiguration = {
+        x: string
+        columns: IColumnData list
+        axis: IAxis
     }
         
-    let createChart id data =
-        let chartData = {
-            bindto = sprintf "#%s" id;
-            data = data
-        }
+    let createChart id (data: IChartConfiguration) =
+        let bindTo = sprintf "#%s" id
         
         getChartFunctionName "drawChart"
-        |> jsInvokeIgnore [|chartData|]
+        |> jsInvokeIgnore [|bindTo; data|]
