@@ -206,7 +206,7 @@ module MainComponent =
     type MainComponentMessage =
         | DoNothing
         | SetPage of ApplicationPage
-        | SetPageFromRoute of ApplicationPage
+        | InitPageFromRouteData of ApplicationPage
         | LogError of exn
         | HeaderComponentMessage of HeaderComponentMessage
         | ChatComponentMessage of ChatComponentMessage
@@ -229,7 +229,7 @@ module MainComponent =
         match message with
         | DoNothing ->
             model, []
-        | SetPageFromRoute page ->
+        | InitPageFromRouteData page ->
             let command = 
                 match page with
                 | Home ->
@@ -255,7 +255,8 @@ module MainComponent =
                match message with
                 | ChangeSection section ->
                     Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
-                | _ -> Cmd.Empty
+                | _ ->
+                    Cmd.Empty
                 
             { model with Chat = ChatComponent.update message model.Chat }, command
         | HeaderComponentMessage message ->
@@ -263,7 +264,8 @@ module MainComponent =
                match message with
                 | ChangeChat chat ->
                     Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
-                | _ -> Cmd.Empty
+                | _ ->
+                    Cmd.Empty
                 
             { model with Header = HeaderComponent.update message model.Header }, command
             
@@ -284,11 +286,11 @@ module MainComponent =
     type MainComponent() as this =
         inherit ProgramComponent<MainComponentModel, MainComponentMessage>()
                     
-        let initCommand() =               
+        let createInitCommand() =               
             let msg = 
                 match this.GetCurrentRoute() with
                 | Some(SetPage(page)) ->
-                    SetPageFromRoute(page)
+                    InitPageFromRouteData(page)
                 | Some(_)
                 | None ->
                     HeaderComponentMessage(ChangeChat(Dotnetruchat))
@@ -302,5 +304,5 @@ module MainComponent =
             route   
         
         override this.Program =
-             Program.mkProgram (fun _ -> initModel, initCommand()) update view
+             Program.mkProgram (fun _ -> initModel, createInitCommand()) update view
              |> Program.withRouter router
