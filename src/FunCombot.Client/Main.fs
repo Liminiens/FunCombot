@@ -38,7 +38,9 @@ module LineChartComponent =
         
         override this.View model dispatch =
             concat [     
-                div [attr.id "test"; attr.classes ["chart"]] []
+                div [attr.id "test"; attr.classes ["chart"]] [
+                    div ["class" => "ui active centered loader"] []
+                ]
                 button [ on.click (fun e -> Charting.createChart "test" chartData)] [text "Elo"]             
             ] 
 
@@ -162,7 +164,6 @@ module ChatComponent =
             
             let chatOverview =
                 chatOverviewTemplate
-                    .ActiveCount(string 123)
                     .UsersCountGraph(
                          ecomp<LineChartComponent,_,_> () ^fun message -> dispatch DoNothing                   
                     )
@@ -196,7 +197,6 @@ module MainComponent =
     type MainComponentMessage =
         | DoNothing
         | LogError of exn
-        | InitPageFromRouteData of ApplicationPage
         | SetPage of ApplicationPage
         | HeaderComponentMessage of HeaderComponentMessage
         | ChatComponentMessage of ChatComponentMessage
@@ -205,35 +205,11 @@ module MainComponent =
     
     let router: Router<ApplicationPage, MainComponentModel, MainComponentMessage> =
         Router.infer SetPage (fun m -> m.Page)
-
-    let initModel = {
-        Page = Home
-        Header = {
-            CurrentChat = Dotnetruchat
-        }
-        Chat = {
-            CurrentSection = Overview
-        }
-    }
     
     let update message model =
         match message with
         | DoNothing ->
             model, []
-        | InitPageFromRouteData page ->
-            let command = 
-                match page with
-                | Home ->
-                    []
-                | Chat(name, section) ->
-                    let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(name))
-                    let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
-                    Cmd.batch [
-                        Cmd.ofMsg (HeaderComponentMessage(SetChat(chatName)));
-                        Cmd.ofMsg (ChatComponentMessage(SetSection(sectionName)));
-                    ]
-                    
-            { model with Page = page }, command
         | SetPage page ->
             { model with Page = page }, []
         | LogError e ->
@@ -281,21 +257,30 @@ module MainComponent =
             let route = router.setRoute path
             printfn "%O" route
             route
-                    
-        let createInitCommand() =               
-            let msg = 
+        
+        let createInitModel () =                             
+            let (page, chatName, sectionName) =
                 match getCurrentRoute() with
-                | Some(SetPage(page)) ->
-                    InitPageFromRouteData(page)
-                | Some(_)
-                | None ->
-                    HeaderComponentMessage(ChangeChat(Dotnetruchat))
+                | Some(SetPage(Chat(chat, section) as page)) ->
+                    let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(chat))
+                    let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
+                    page, chatName, sectionName
+                | _ ->
+                    (Chat(Dotnetruchat.UrlName, Overview.UrlName)), Dotnetruchat, Overview
+                
+            {
+                Page = page
+                Header = {
+                    CurrentChat = chatName
+                }
+                Chat = {
+                    CurrentSection = sectionName
+                }
+            }
                     
-            Cmd.batch [
-                Cmd.ofMsg msg        
-                Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)
-            ]           
+        let createInitCommand() =                      
+            Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)                    
         
         override this.Program =
-             Program.mkProgram (fun _ -> initModel, createInitCommand()) update view
+             Program.mkProgram (fun _ -> createInitModel(), createInitCommand()) update view
              |> Program.withRouter router
