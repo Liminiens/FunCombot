@@ -2,6 +2,7 @@ module rec FunCombot.Client.Main
 
 open Elmish
 open Bolero
+open System
 open Bolero.Html
 open FunCombot.Client
 open FunCombot.Client.Javascript
@@ -12,37 +13,127 @@ type ApplicationPage =
     | [<EndPoint("/chat")>]
       Chat of name: string * section: string    
 
-module LineChartComponent =
-    open Bolero.Html
+module SeriesChartComponent =
+   open Charting
+   
+   type TimeseriesChartTemplate = Template<"""frontend/templates/timeseries_chart.html""">
+   
+   type GraphUnit =
+       | Day
+       | Week
+       | Month
+       member this.Name =
+           match this with
+           | Day -> "day"
+           | Week -> "week"
+           | Month -> "month"
+           
+       static member FromString(str) =
+           match str with
+           | "day" -> Some Day
+           | "week" -> Some Week
+           | "month" -> Some Month
+           | _ -> None
+        
+   let formatDate (date: DateTime) = date.ToString("yyyy-MM-dd")
+   let stringToDate str = DateTime.ParseExact(str, "yyyy-MM-dd", null)
+        
+   type SeriesChartComponentModel =
+       { FromDateMin: DateTime
+         FromDateMax: DateTime
+         FromDateValue: DateTime option
+         ToDateMin: DateTime
+         ToDateMax: DateTime
+         ToDateValue: DateTime option
+         Unit: GraphUnit }
+       
+       static member Default =
+           let now = DateTime.Now
+           let dateFrom = new DateTime(now.Year, now.Month, 1)
+           let dateTo = new DateTime(now.Year, now.Month + 1, 1)
+           
+           { FromDateMin = dateFrom
+             FromDateMax = dateTo
+             FromDateValue = None 
+             ToDateMin = dateTo
+             ToDateMax = stringToDate "2030-01-01" 
+             ToDateValue = None
+             Unit = Week }
+     
+   type SeriesChartComponentMessage<'TMessage> =
+       | SetDateFrom of DateTime
+       | SetDateTo of DateTime
+       | SetUnit of GraphUnit
+       | Message of 'TMessage
+   
+   let update messageUpdateFn message model =
+       match message with
+       | SetDateFrom date ->
+           { model with FromDateValue = Some date }
+       | SetDateTo date ->
+           { model with ToDateValue = Some date }
+       | SetUnit unitValue ->
+           { model with Unit = unitValue }
+       | Message compMessage ->
+           messageUpdateFn compMessage model
+    
+   type SeriesChartComponent<'TMessage>(elementId: string, configuration: IChartConfiguration) =
+        inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
+        
+        let template = TimeseriesChartTemplate()
+        
+        override this.OnAfterRender() =
+            Charting.createChart elementId configuration
+        
+        override this.View model dispatch =
+            let graph =
+                div [attr.id elementId; attr.classes ["chart"]] [
+                    div ["class" => "ui active centered loader"] []
+                ]
+            
+            let units =
+                forEach getUnionCases<GraphUnit> ^fun (case, _, tag) ->
+                    option [ attr.value tag ] [text case.Name]
+            
+            let (fromDateValue, toDateValue) =
+                Option.defaultValue model.FromDateMin model.FromDateValue,
+                Option.defaultValue model.ToDateMin model.ToDateValue
+                
+            template
+                .FromDateMin(formatDate model.FromDateMin)
+                .FromDateMax(formatDate model.FromDateMax)
+                .ToDateMin(formatDate model.ToDateMin)
+                .ToDateMax(formatDate model.ToDateMax)
+                .FromDate(formatDate fromDateValue, fun date -> dispatch (SetDateFrom(stringToDate date)))
+                .ToDate(formatDate toDateValue, fun date -> dispatch (SetDateTo(stringToDate date)))
+                .Units(units)
+                .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(Option.defaultValue Week <| GraphUnit.FromString unit)) )
+                .Graph(graph)
+                .Elt()
+
+module UserDataComponent =
     open Charting
+    open SeriesChartComponent
     
     let chartData = {
         x = "x";
         columns = [
             { name = "x"; data = ["2013-01-01"; "2013-01-02"; "2013-01-03"; "2013-01-04"; "2013-01-05"; "2013-01-06"] };
             { name = "data1"; data = [30; 200; 100; 400; 150; 250] };
-            { name = "data2"; data = [130; 200; 100; 200; 140; 30] };
        ];
        axis = {
-           x = {
-               ``type`` = "timeseries"
-               tick = {
-                    format = "%Y-%m-%d"
+               x = {
+                   ``type`` = "timeseries"
+                   tick = {
+                        format = "%Y-%m-%d"
+                   }
                }
-           }
        }
     }
     
-    type LineChartComponent() =
-        inherit ElmishComponent<unit, unit>()
-        
-        override this.View model dispatch =
-            concat [     
-                div [attr.id "test"; attr.classes ["chart"]] [
-                    div ["class" => "ui active centered loader"] []
-                ]
-                button [ on.click (fun e -> Charting.createChart "test" chartData)] [text "Elo"]             
-            ] 
+    type UserDataComponent() =
+        inherit SeriesChartComponent<unit>("test", chartData)
+         
 
 module HeaderComponent =
     
@@ -84,7 +175,7 @@ module HeaderComponent =
         | ChangeChat of ChatName
     
     type HeaderComponentModel = {
-        CurrentChat: ChatName;
+        CurrentChat: ChatName
     }
     
     let headerTemplate = HeaderTemplate()
@@ -101,20 +192,51 @@ module HeaderComponent =
         
         override this.View model dispatch =
             let dropDown =
-                forEach getUnionCases<ChatName> ^fun (case, name) ->
+                forEach getUnionCases<ChatName> ^fun (case, name, _) ->
                     a ["class" => "item"; on.click ^fun ev ->
-                        if model.CurrentChat <> case then dispatch (ChangeChat(case))] [ text case.DisplayName ]
+                        if model.CurrentChat <> case then dispatch (ChangeChat(case))] [
+                        text case.DisplayName
+                    ]
             headerTemplate
                 .HeaderItem(text "FunCombot")
                 .DropdownItems(dropDown)
                 .ChatName(text model.CurrentChat.DisplayName)
                 .Elt()
 
-module ChatComponent =    
-    open LineChartComponent
-
+module ChatComponent =
+    [<AutoOpen>]
+    module OverviewComponent =    
+        open UserDataComponent
+        open SeriesChartComponent
+        
+        type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
+        
+        type OverviewComponentModel = {
+            UserData: SeriesChartComponentModel
+        }
+        
+        type OverviewComponentMessage =
+            | ChartMessage of SeriesChartComponentMessage<unit>
+        
+        let update message model =
+            let messageUpdate message model = model            
+            match message with
+            | ChartMessage message ->
+                { model with UserData = SeriesChartComponent.update messageUpdate message model.UserData }
+            
+        type OverviewComponent() =       
+            inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
+            
+            let chatOverviewTemplate = ChatOverviewTemplate()
+            
+            override this.View model dispatch =
+                chatOverviewTemplate
+                    .UsersCountGraph(
+                         ecomp<UserDataComponent,_,_> model.UserData ^fun message -> dispatch (ChartMessage(message))                   
+                    )
+                    .Elt()    
+    
     type MainTemplate = Template<"""frontend/templates/main.html""">
-    type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
     
     type SectionName =
         | Overview
@@ -128,14 +250,16 @@ module ChatComponent =
             | "overview" -> Some Overview
             | "users"  -> Some Users
             | _ -> None
-            
+        
     type ChatComponentMessage =
         | DoNothing
+        | OverviewComponentMessage of OverviewComponentMessage
         | SetSection of SectionName
         | ChangeSection of SectionName
         
     type ChatComponentModel = {
         CurrentSection: SectionName
+        Overview: OverviewComponentModel
     }
     
     let update message model =
@@ -145,35 +269,29 @@ module ChatComponent =
         | SetSection name ->
             { model with CurrentSection = name }  
         | ChangeSection name ->
-            { model with CurrentSection = name }   
+            { model with CurrentSection = name }
+        | OverviewComponentMessage message ->
+            { model with Overview = OverviewComponent.update message model.Overview }      
     
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
         
-        let chatOverviewTemplate = ChatOverviewTemplate()
         let mainTemplate = MainTemplate()
         
         override this.View model dispatch =
             let menu =
-                forEach getUnionCases<SectionName> ^fun (case, name) ->
+                forEach getUnionCases<SectionName> ^fun (case, name, _) ->
                     a [attr.classes [yield "item"; if model.CurrentSection = case then yield "active";]
                        on.click ^fun ev ->
                            if model.CurrentSection <> case then dispatch (ChangeSection(case))] [
                         text name
                     ]       
             
-            let chatOverview =
-                chatOverviewTemplate
-                    .UsersCountGraph(
-                         ecomp<LineChartComponent,_,_> () ^fun message -> dispatch DoNothing                   
-                    )
-                    .Elt()
-            
             let content =
                 cond model.CurrentSection ^fun section ->
                     match section with
                     | Overview ->
-                        chatOverview
+                        ecomp<OverviewComponent,_,_> model.Overview ^fun message -> dispatch (OverviewComponentMessage(message))
                     | Users ->
                         div [] [
                             h1 ["class" => "ui header"] [text "Users"]
@@ -182,9 +300,9 @@ module ChatComponent =
             mainTemplate.SectionMenu(menu).Content(content).Elt()
             
 module MainComponent = 
-    open System
     open HeaderComponent
     open ChatComponent
+    open SeriesChartComponent
     
     type RootTemplate = Template<"frontend/templates/root.html">
       
@@ -242,6 +360,7 @@ module MainComponent =
         let chatInfo =
             ecomp<ChatComponent,_,_> {
                 CurrentSection = model.Chat.CurrentSection
+                Overview = model.Chat.Overview
             } ^fun message -> dispatch (ChatComponentMessage(message))
             
         rootTemplate
@@ -255,13 +374,12 @@ module MainComponent =
         let getCurrentRoute() =
             let path = Uri(this.UriHelper.GetAbsoluteUri()).AbsolutePath.Trim('/')
             let route = router.setRoute path
-            printfn "%O" route
             route
         
         let createInitModel () =                             
             let (page, chatName, sectionName) =
                 match getCurrentRoute() with
-                | Some(SetPage(Chat(chat, section) as page)) ->
+                | Some(SetPage(page & Chat(chat, section))) ->
                     let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(chat))
                     let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
                     page, chatName, sectionName
@@ -275,6 +393,9 @@ module MainComponent =
                 }
                 Chat = {
                     CurrentSection = sectionName
+                    Overview = {
+                        UserData = SeriesChartComponentModel.Default
+                    }
                 }
             }
                     

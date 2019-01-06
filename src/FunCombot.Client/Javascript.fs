@@ -5,6 +5,7 @@ open Microsoft.JSInterop
 
 [<AutoOpen>]
 module JSRuntimeExt =
+
     type FunctionName =
         private FunctionName of string
             static member Create(name: string) =
@@ -25,7 +26,7 @@ module JSRuntimeExt =
 module SemanticUi =
     let initJs () =
         async {
-            do! FunctionName.Create "initDropdowns" |> jsInvokeUnit<unit>
+            do! FunctionName.Create "initDropdowns" |> jsInvokeUnit
         }
 
 module Charting =

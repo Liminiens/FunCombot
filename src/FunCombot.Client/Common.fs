@@ -18,4 +18,4 @@ module Reflection =
     
     let getUnionCases<'T> =
         FSharpType.GetUnionCases(typeof<'T>)
-        |> Array.map ^fun case -> (FSharpValue.MakeUnion(case, [| |]) :?> 'T, case.Name)
+        |> Array.map ^fun case -> (FSharpValue.MakeUnion(case, [| |]) :?> 'T, case.Name, case.Tag)

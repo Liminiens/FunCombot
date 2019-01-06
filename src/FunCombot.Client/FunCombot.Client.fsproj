@@ -19,6 +19,7 @@
     <Content Include="frontend\templates\root.html" />
     <Content Include="frontend\templates\main.html" />
     <Content Include="frontend\templates\header.html" />
+    <Content Include="frontend\templates\timeseries_chart.html" />
     <Content Include="frontend\scripts\index.ts" />
     <Content Include="frontend\scripts\charting\index.ts" />
     <Content Include="postcss.config.js" />

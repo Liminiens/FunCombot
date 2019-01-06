@@ -30,7 +30,15 @@ function convertToC3(bindTo: string, configuration: IChartConfiguration): ChartC
             x: configuration.x,
             columns: configuration.columns.map(c => [c.name, ...c.data])
         },
-        axis: configuration.axis
+        axis: configuration.axis,
+        grid: {
+            x: {
+                show: true
+            },
+            y: {
+                show: true
+            }
+        }
     };
     return result;
 }
