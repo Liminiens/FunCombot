@@ -39,23 +39,7 @@ module SeriesChartComponent =
        date.ToString("yyyy-MM-dd")
 
    let stringToDate (str: string) =
-       let parts = str.Split('-');
-       let year = int parts.[0]
-       let month = 
-           let value = int parts.[1]
-           if value <= 0 then 1 
-           elif value > 12 then 12
-           else value
-
-       let day = 
-           let lastDay = DateTime.DaysInMonth(year, month)
-           let value = int parts.[2]
-           if value <= 0 then 1 
-           elif value > lastDay then lastDay
-           else value
-        
-       let date = DateTime(year, month, day)
-       date
+       DateTime.ParseExact(str, "yyyy-MM-dd", null)
         
    type SeriesChartComponentModel =
        { FromDateMin: DateTime
@@ -112,7 +96,7 @@ module SeriesChartComponent =
                             on.input ^ fun ev ->
                                 let value = ev.Value :?> string
                                 let valid = not <| isNullOrWhiteSpace value
-                                if valid then printfn "%s" value; dispatch value ]
+                                if valid then dispatch value ]
                 ]       
             ]
 
