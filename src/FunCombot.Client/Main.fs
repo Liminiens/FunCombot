@@ -35,7 +35,7 @@ module SeriesChartComponent =
            | "month" -> Some Month
            | _ -> None
         
-   let formatDate (date: DateTime) = 
+   let dateToString (date: DateTime) = 
        date.ToString("yyyy-MM-dd")
 
    let stringToDate (str: string) =
@@ -55,7 +55,6 @@ module SeriesChartComponent =
            else value
         
        let date = DateTime(year, month, day)
-       printfn "%O" date 
        date
         
    type SeriesChartComponentModel =
@@ -101,7 +100,22 @@ module SeriesChartComponent =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
         
         let template = TimeseriesChartTemplate()
-        
+                  
+        let createDateInput labelText value min max dispatch = 
+            label[] [
+                concat [
+                    text labelText
+                    input ["type" => "date";
+                            attr.value <| dateToString value;
+                            attr.min <| dateToString min;
+                            attr.max <| dateToString max;
+                            on.input ^ fun ev ->
+                                let value = ev.Value :?> string
+                                let valid = not <| isNullOrWhiteSpace value
+                                if valid then printfn "%s" value; dispatch value ]
+                ]       
+            ]
+
         override this.OnAfterRender() =
             Charting.createChart elementId configuration
         
@@ -118,16 +132,23 @@ module SeriesChartComponent =
             let (fromDateValue, toDateValue) =
                 Option.defaultValue model.FromDateMin model.FromDateValue,
                 Option.defaultValue model.ToDateMin model.ToDateValue
-                
+            
+            let fromInput =
+                createDateInput "From:" fromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
+                    dispatch (SetDateFrom(stringToDate value))
+            
+            let toInput =
+                createDateInput "To:" toDateValue model.ToDateMin model.ToDateMax ^fun value -> 
+                    dispatch (SetDateTo(stringToDate value))
+            
+            let parseUnitOrDefault unit = 
+                Option.defaultValue Week <| GraphUnit.FromString unit
+
             template
-                .FromDateMin(formatDate model.FromDateMin)
-                .FromDateMax(formatDate model.FromDateMax)
-                .ToDateMin(formatDate model.ToDateMin)
-                .ToDateMax(formatDate model.ToDateMax)
-                .FromDate(formatDate fromDateValue, fun date -> dispatch (SetDateFrom(stringToDate date)))
-                .ToDate(formatDate toDateValue, fun date -> dispatch (SetDateTo(stringToDate date)))
+                .FromInput(fromInput)
+                .ToInput(toInput)
                 .Units(units)
-                .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(Option.defaultValue Week <| GraphUnit.FromString unit)) )
+                .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
                 .Graph(graph)
                 .Elt()
 
@@ -265,6 +286,7 @@ module ChatComponent =
             match this with
             | Overview -> "overview"
             | Users -> "users"
+
         static member FromString(name: string) =
             match name with
             | "overview" -> Some Overview
@@ -302,7 +324,7 @@ module ChatComponent =
             let menu =
                 forEach getUnionCases<SectionName> ^fun (case, name, _) ->
                     a [attr.classes [yield "item"; if model.CurrentSection = case then yield "active";]
-                       on.click ^fun ev ->
+                       on.click ^fun _ ->
                            if model.CurrentSection <> case then dispatch (ChangeSection(case))] [
                         text name
                     ]       

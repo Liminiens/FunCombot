@@ -1,10 +1,15 @@
 namespace FunCombot.Client
 
+open System
 open Microsoft.FSharp.Reflection
 
 [<AutoOpen>]
 module Common =
     let inline (^) f x = f x
+
+    let inline isNotNull value = not <| isNull value
+
+    let inline isNullOrWhiteSpace (str: string) = String.IsNullOrWhiteSpace(str)
     
 [<AutoOpen>]    
 module Reflection =
