@@ -8,3 +8,22 @@ pre {
   font-family: inherit;
   white-space: pre-line;
 }
+
+.body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+}
+
+.segment.footer {
+  padding: 3em 0em;
+
+  .github-link {
+    color: white;
+    font-style: normal;
+  }
+}

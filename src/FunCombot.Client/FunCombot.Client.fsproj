@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RunCommand>dotnet</RunCommand>
     <RunArguments>blazor serve</RunArguments>
+    <TypeScriptToolsVersion>3.1</TypeScriptToolsVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Common.fs" />
@@ -28,6 +29,10 @@
   
   <ItemGroup>
     <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\images\github.png" />
   </ItemGroup>
   
   <Import Project="..\..\.paket\Paket.Restore.targets" />

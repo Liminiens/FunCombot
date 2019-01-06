@@ -44,10 +44,10 @@ module SeriesChartComponent =
    type SeriesChartComponentModel =
        { FromDateMin: DateTime
          FromDateMax: DateTime
-         FromDateValue: DateTime option
+         FromDateValue: DateTime
          ToDateMin: DateTime
          ToDateMax: DateTime
-         ToDateValue: DateTime option
+         ToDateValue: DateTime
          Unit: GraphUnit }
        
        static member Default =
@@ -56,11 +56,11 @@ module SeriesChartComponent =
            let dateTo = new DateTime(now.Year, now.Month + 1, 1)
            
            { FromDateMin = dateFrom
-             FromDateMax = dateTo
-             FromDateValue = None 
+             FromDateMax = stringToDate "2030-01-01" 
+             FromDateValue = dateFrom 
              ToDateMin = dateTo
              ToDateMax = stringToDate "2030-01-01" 
-             ToDateValue = None
+             ToDateValue = dateTo
              Unit = Week }
      
    type SeriesChartComponentMessage<'TMessage> =
@@ -71,10 +71,12 @@ module SeriesChartComponent =
    
    let update messageUpdateFn message model =
        match message with
-       | SetDateFrom date ->
-           { model with FromDateValue = Some date }
+       | SetDateFrom fromDate ->
+           { model with FromDateValue = fromDate
+                        ToDateMin = fromDate
+                        ToDateValue = if fromDate > model.ToDateValue then fromDate else model.ToDateValue }                         
        | SetDateTo date ->
-           { model with ToDateValue = Some date }
+           { model with ToDateValue = date }
        | SetUnit unitValue ->
            { model with Unit = unitValue }
        | Message compMessage ->
@@ -90,13 +92,13 @@ module SeriesChartComponent =
                 concat [
                     text labelText
                     input ["type" => "date";
-                            attr.value <| dateToString value;
-                            attr.min <| dateToString min;
-                            attr.max <| dateToString max;
-                            on.input ^ fun ev ->
-                                let value = ev.Value :?> string
-                                let valid = not <| isNullOrWhiteSpace value
-                                if valid then dispatch value ]
+                           attr.value <| dateToString value;
+                           attr.min <| dateToString min;
+                           attr.max <| dateToString max;
+                           on.input ^ fun ev ->
+                               let value = ev.Value :?> string
+                               let valid = not <| isNullOrWhiteSpace value
+                               if valid then dispatch value ]
                 ]       
             ]
 
@@ -113,16 +115,12 @@ module SeriesChartComponent =
                 forEach getUnionCases<GraphUnit> ^fun (case, _, tag) ->
                     option [ attr.value tag ] [text case.Name]
             
-            let (fromDateValue, toDateValue) =
-                Option.defaultValue model.FromDateMin model.FromDateValue,
-                Option.defaultValue model.ToDateMin model.ToDateValue
-            
             let fromInput =
-                createDateInput "From:" fromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
+                createDateInput "From:" model.FromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
                     dispatch (SetDateFrom(stringToDate value))
             
             let toInput =
-                createDateInput "To:" toDateValue model.ToDateMin model.ToDateMax ^fun value -> 
+                createDateInput "To:" model.ToDateValue model.ToDateMin model.ToDateMax ^fun value -> 
                     dispatch (SetDateTo(stringToDate value))
             
             let parseUnitOrDefault unit = 
