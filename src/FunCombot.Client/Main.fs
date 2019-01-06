@@ -74,7 +74,7 @@ module SeriesChartComponent =
        | SetDateFrom fromDate ->
            { model with FromDateValue = fromDate
                         ToDateMin = fromDate
-                        ToDateValue = if fromDate > model.ToDateValue then fromDate else model.ToDateValue }                         
+                        ToDateValue = if fromDate > model.ToDateValue then fromDate.AddMonths(1) else model.ToDateValue }                         
        | SetDateTo date ->
            { model with ToDateValue = date }
        | SetUnit unitValue ->
