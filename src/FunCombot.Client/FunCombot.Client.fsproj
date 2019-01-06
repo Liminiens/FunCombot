@@ -16,6 +16,7 @@
     <Content Include="frontend\styles\index.scss" />
     <Content Include="frontend\styles\_charting.scss" />
     <Content Include="frontend\styles\_sizes.scss" />
+    <Content Include="frontend\styles\_footer.scss" />
     <Content Include="frontend\templates\chat_overview.html" />
     <Content Include="frontend\templates\root.html" />
     <Content Include="frontend\templates\main.html" />

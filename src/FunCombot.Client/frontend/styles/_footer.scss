@@ -1,0 +1,12 @@
+.segment.footer {
+  padding: 3em 0em;
+
+  .github-link {
+    color: white;
+    font-style: normal;
+
+    &:hover {
+      filter: brightness(90%);
+    }
+  }
+}

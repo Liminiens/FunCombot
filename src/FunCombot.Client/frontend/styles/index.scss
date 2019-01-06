@@ -1,4 +1,5 @@
 @import "_charting.scss";
+@import "_footer.scss";
 
 pre {
   font-size: inherit;
@@ -9,7 +10,7 @@ pre {
   white-space: pre-line;
 }
 
-.body {
+.app-body {
   display: flex;
   min-height: 100vh;
   flex-direction: column;
@@ -17,13 +18,4 @@ pre {
 
 .app-content {
   flex: 1;
-}
-
-.segment.footer {
-  padding: 3em 0em;
-
-  .github-link {
-    color: white;
-    font-style: normal;
-  }
 }

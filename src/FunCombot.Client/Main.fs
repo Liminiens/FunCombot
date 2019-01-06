@@ -79,8 +79,8 @@ module SeriesChartComponent =
            { model with ToDateValue = date }
        | SetUnit unitValue ->
            { model with Unit = unitValue }
-       | Message compMessage ->
-           messageUpdateFn compMessage model
+       | Message tMessage ->
+           messageUpdateFn tMessage model
     
    type SeriesChartComponent<'TMessage>(elementId: string, configuration: IChartConfiguration) =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
@@ -221,7 +221,7 @@ module HeaderComponent =
                         text case.DisplayName
                     ]
             headerTemplate
-                .HeaderItem(text "FunCombot")
+                .HeaderItem(text "StatsBot")
                 .DropdownItems(dropDown)
                 .ChatName(text model.CurrentChat.DisplayName)
                 .Elt()
