@@ -35,8 +35,28 @@ module SeriesChartComponent =
            | "month" -> Some Month
            | _ -> None
         
-   let formatDate (date: DateTime) = date.ToString("yyyy-MM-dd")
-   let stringToDate str = DateTime.ParseExact(str, "yyyy-MM-dd", null)
+   let formatDate (date: DateTime) = 
+       date.ToString("yyyy-MM-dd")
+
+   let stringToDate (str: string) =
+       let parts = str.Split('-');
+       let year = int parts.[0]
+       let month = 
+           let value = int parts.[1]
+           if value <= 0 then 1 
+           elif value > 12 then 12
+           else value
+
+       let day = 
+           let lastDay = DateTime.DaysInMonth(year, month)
+           let value = int parts.[2]
+           if value <= 0 then 1 
+           elif value > lastDay then lastDay
+           else value
+        
+       let date = DateTime(year, month, day)
+       printfn "%O" date 
+       date
         
    type SeriesChartComponentModel =
        { FromDateMin: DateTime
@@ -119,7 +139,7 @@ module UserDataComponent =
         x = "x";
         columns = [
             { name = "x"; data = ["2013-01-01"; "2013-01-02"; "2013-01-03"; "2013-01-04"; "2013-01-05"; "2013-01-06"] };
-            { name = "data1"; data = [30; 200; 100; 400; 150; 250] };
+            { name = "users"; data = [30; 200; 100; 400; 150; 250] };
        ];
        axis = {
                x = {
