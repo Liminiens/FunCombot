@@ -5,7 +5,7 @@
     color: white;
     font-style: normal;
 
-    &:hover {
+    &:hover, &:active {
       filter: brightness(90%);
     }
   }

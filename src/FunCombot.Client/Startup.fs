@@ -8,7 +8,7 @@ open Bolero.Remoting
 type Startup() =
 
     member __.ConfigureServices(services: IServiceCollection) =
-        ()
+        services.AddSingleton<IRemoteProvider, ClientRemoteProvider>() |> ignore
 
     member __.Configure(app: IBlazorApplicationBuilder) =
         app.AddComponent<Main.MainComponent.MainComponent>("#main")

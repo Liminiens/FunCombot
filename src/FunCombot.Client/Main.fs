@@ -5,7 +5,12 @@ open Bolero
 open System
 open Bolero.Html
 open FunCombot.Client
+open FunCombot.Client.Types
 open FunCombot.Client.Javascript
+open Bolero.Remoting
+
+type IRemoteServiceProvider = 
+    abstract GetService<'T when 'T :> IRemoteService> : unit -> 'T
 
 type ApplicationPage =
     | [<EndPoint("/")>]
@@ -158,39 +163,7 @@ module UserDataComponent =
         inherit SeriesChartComponent<unit>("test", chartData)
          
 
-module HeaderComponent =
-    
-    type ChatName =
-        | Dotnetruchat
-        | NetTalks
-        | Pronet
-        | Fsharpchat
-        | MicrosoftStackJobs
-        member this.DisplayName =
-            match this with
-            | Dotnetruchat -> "DotNetRuChat"
-            | NetTalks -> ".NET Talks"
-            | Pronet -> "pro .net"
-            | Fsharpchat -> "FSharp Chat"
-            | MicrosoftStackJobs -> "Microsoft Stack Jobs"
-            
-        member this.UrlName =
-            match this with
-            | Dotnetruchat -> "dotnet-ru-chat"
-            | NetTalks -> "net-talks"
-            | Pronet -> "pro-net"
-            | Fsharpchat -> "fsharp-chat"
-            | MicrosoftStackJobs -> "ms-stack-jobs"
-        
-        static member FromString(name: string) =
-            match name with
-            | "dotnet-ru-chat" -> Some Dotnetruchat
-            | "net-talks"  -> Some NetTalks
-            | "pro-net" -> Some Pronet
-            | "fsharp-chat"  -> Some Fsharpchat
-            | "ms-stack-jobs" -> Some MicrosoftStackJobs
-            | _ -> None
-    
+module HeaderComponent =   
     type HeaderTemplate = Template<"""frontend/templates/header.html""">
         
     type HeaderComponentMessage =
@@ -327,6 +300,7 @@ module MainComponent =
     open HeaderComponent
     open ChatComponent
     open SeriesChartComponent
+    open FunCombot.Client.Remoting.Chat
     
     type RootTemplate = Template<"frontend/templates/root.html">
       
@@ -338,6 +312,7 @@ module MainComponent =
     
     type MainComponentMessage =
         | DoNothing
+        | InitPage
         | LogError of exn
         | SetPage of ApplicationPage
         | HeaderComponentMessage of HeaderComponentMessage
@@ -348,33 +323,36 @@ module MainComponent =
     let router: Router<ApplicationPage, MainComponentModel, MainComponentMessage> =
         Router.infer SetPage (fun m -> m.Page)
     
-    let update message model =
-        match message with
-        | DoNothing ->
-            model, []
-        | SetPage page ->
-            { model with Page = page }, []
-        | LogError e ->
-            eprintf "%O" e
-            model, []
-        | ChatComponentMessage message ->
-            let command =
-               match message with
-                | ChangeSection section ->
-                    Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
-                | _ ->
-                    []
+    let update (remoteServiceProvider: IRemoteServiceProvider) =
+        fun message model ->
+            match message with
+            | DoNothing ->
+                model, []
+            | InitPage -> 
+                model, []
+            | SetPage page ->
+                { model with Page = page }, []
+            | LogError e ->
+                eprintf "%O" e
+                model, []
+            | ChatComponentMessage message ->
+                let command =
+                   match message with
+                    | ChangeSection section ->
+                        Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                    | _ ->
+                        []
                 
-            { model with Chat = ChatComponent.update message model.Chat }, command
-        | HeaderComponentMessage message ->
-            let command =
-               match message with
-                | ChangeChat chat ->
-                    Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
-                | _ ->
-                    []
+                { model with Chat = ChatComponent.update message model.Chat }, command
+            | HeaderComponentMessage message ->
+                let command =
+                   match message with
+                    | ChangeChat chat ->
+                        Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
+                    | _ ->
+                        []
                 
-            { model with Header = HeaderComponent.update message model.Header }, command
+                { model with Header = HeaderComponent.update message model.Header }, command
             
     let view model dispatch =
         let header =
@@ -400,16 +378,17 @@ module MainComponent =
             let route = router.setRoute path
             route
         
+        let getRouteData() =
+            match getCurrentRoute() with
+            | Some(SetPage(page & Chat(chat, section))) ->
+                let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(chat))
+                let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
+                page, chatName, sectionName
+            | _ ->
+                (Chat(Dotnetruchat.UrlName, Overview.UrlName)), Dotnetruchat, Overview
+
         let createInitModel () =                             
-            let (page, chatName, sectionName) =
-                match getCurrentRoute() with
-                | Some(SetPage(page & Chat(chat, section))) ->
-                    let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(chat))
-                    let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
-                    page, chatName, sectionName
-                | _ ->
-                    (Chat(Dotnetruchat.UrlName, Overview.UrlName)), Dotnetruchat, Overview
-                
+            let (page, chatName, sectionName) = getRouteData()            
             {
                 Page = page
                 Header = {
@@ -423,9 +402,15 @@ module MainComponent =
                 }
             }
                     
-        let createInitCommand() =                      
-            Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)                    
-        
+        let createInitCommand() = 
+            Cmd.batch [            
+                Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)  
+            ]
+
         override this.Program =
-             Program.mkProgram (fun _ -> createInitModel(), createInitCommand()) update view
-             |> Program.withRouter router
+            let provider =
+                { new IRemoteServiceProvider with
+                    member __.GetService<'T when 'T :> IRemoteService> () = this.Remote<'T>() }
+
+            Program.mkProgram (fun _ -> createInitModel(), createInitCommand()) (update provider) view
+            |> Program.withRouter router
