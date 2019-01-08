@@ -1,10 +1,26 @@
 ﻿namespace FunCombot.Client.Types
 
-type ChatName =
+open Bolero
+open Bolero.Remoting
+
+type IRemoteServiceProvider = 
+    abstract GetService<'T when 'T :> IRemoteService> : unit -> 'T
+
+type ApplicationPage =
+    | [<EndPoint("/")>]
+      Home
+    | [<EndPoint("/chat")>]
+      Chat of name: string * section: string    
+
+type DynamicModel<'T> =
+    | NotLoaded
+    | Model of 'T
+
+type Chat =
+    | Fsharpchat
     | Dotnetruchat
     | NetTalks
     | Pronet
-    | Fsharpchat
     | MicrosoftStackJobs
     member this.DisplayName =
         match this with

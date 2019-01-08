@@ -13,7 +13,7 @@ module Chat =
     }
     
     type ChatDataService =        
-        { GetChatData: ChatName -> Async<ChatData> }
+        { GetChatData: Chat -> Async<ChatData> }
 
         interface IRemoteService with
             member __.BasePath = "/chat-data"

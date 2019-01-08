@@ -9,14 +9,10 @@ open FunCombot.Client.Types
 open FunCombot.Client.Javascript
 open Bolero.Remoting
 
-type IRemoteServiceProvider = 
-    abstract GetService<'T when 'T :> IRemoteService> : unit -> 'T
+module CommonNodes =
+    let loadingIcon = i ["class" => "spinner loading icon"] []
 
-type ApplicationPage =
-    | [<EndPoint("/")>]
-      Home
-    | [<EndPoint("/chat")>]
-      Chat of name: string * section: string    
+    let loadingDiv = div ["class" => "ui active centered loader"] []
 
 module SeriesChartComponent =
    open Charting
@@ -118,7 +114,7 @@ module SeriesChartComponent =
             
             let units =
                 forEach getUnionCases<GraphUnit> ^fun (case, _, tag) ->
-                    option [ attr.value tag ] [text case.Name]
+                    option [attr.value tag] [text case.Name]
             
             let fromInput =
                 createDateInput "From:" model.FromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
@@ -148,8 +144,8 @@ module UserDataComponent =
         columns = [
             { name = "x"; data = ["2013-01-01"; "2013-01-02"; "2013-01-03"; "2013-01-04"; "2013-01-05"; "2013-01-06"] };
             { name = "users"; data = [30; 200; 100; 400; 150; 250] };
-       ];
-       axis = {
+        ];
+        axis = {
                x = {
                    ``type`` = "timeseries"
                    tick = {
@@ -167,11 +163,10 @@ module HeaderComponent =
     type HeaderTemplate = Template<"""frontend/templates/header.html""">
         
     type HeaderComponentMessage =
-        | SetChat of ChatName
-        | ChangeChat of ChatName
+        | ChangeChat of Chat
     
     type HeaderComponentModel = {
-        CurrentChat: ChatName
+        CurrentChat: Chat
     }
     
     let headerTemplate = HeaderTemplate()
@@ -180,17 +175,16 @@ module HeaderComponent =
         match message with
         | ChangeChat chat ->
             { model with CurrentChat = chat }
-        | SetChat chat ->
-            { model with CurrentChat = chat }
             
     type HeaderComponent() =
         inherit ElmishComponent<HeaderComponentModel, HeaderComponentMessage>()
         
         override this.View model dispatch =
             let dropDown =
-                forEach getUnionCases<ChatName> ^fun (case, name, _) ->
-                    a ["class" => "item"; on.click ^fun ev ->
-                        if model.CurrentChat <> case then dispatch (ChangeChat(case))] [
+                forEach getUnionCases<Chat> ^fun (case, name, _) ->
+                    a [ attr.classes [yield "item"; if model.CurrentChat = case then yield "active selected"];
+                        on.click ^fun ev ->
+                            if model.CurrentChat <> case then dispatch (ChangeChat(case))] [
                         text case.DisplayName
                     ]
             headerTemplate
@@ -201,24 +195,80 @@ module HeaderComponent =
 
 module ChatComponent =
     [<AutoOpen>]
-    module OverviewComponent =    
+    module OverviewComponent = 
         open UserDataComponent
         open SeriesChartComponent
+
+        [<AutoOpen>]
+        module DescriptionComponent = 
+            open FunCombot.Client.Remoting.Chat
+
+            type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">
+
+            type Description = 
+                { Description: string
+                  TotalUsers: int32
+                  ActiveUsers: int32
+                  ChangeInTotalUsersForWeek: int32 }
+                static member FromServiceData(data: ChatData) = 
+                    { Description = data.Description
+                      TotalUsers = data.TotalUsers
+                      ActiveUsers = data.ActiveInThreeDays
+                      ChangeInTotalUsersForWeek = data.ChangeInTotalUsersForWeek }
+
+            type DescriptionModel = {
+                Data: DynamicModel<Description>
+            }
+
+            type DescriptionComponentMessage =
+                | SetDescription of Description
+            
+            let update message model =        
+                match message with
+                | SetDescription description ->
+                     { model with Data = Model description }
+
+            type DescriptionComponent() =       
+                inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()
+                
+                let template = DescriptionTemplate()
+
+                override this.View model dispatch =
+                    match model.Data with
+                    | NotLoaded ->
+                        template
+                            .Description(CommonNodes.loadingDiv)
+                            .ActiveUsers(CommonNodes.loadingIcon)
+                            .TotalUsers(CommonNodes.loadingIcon)
+                            .Change(CommonNodes.loadingIcon)
+                            .Elt()
+                    | Model description ->
+                        template
+                            .Description(pre [] [text description.Description])
+                            .ActiveUsers(span [] [text <| string description.ActiveUsers])
+                            .TotalUsers(span [] [text <| string description.TotalUsers])
+                            .Change(span [] [text <| string description.ChangeInTotalUsersForWeek])
+                            .Elt()
         
         type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
-        
+
         type OverviewComponentModel = {
             UserData: SeriesChartComponentModel
+            Description: DescriptionModel
         }
         
         type OverviewComponentMessage =
             | ChartMessage of SeriesChartComponentMessage<unit>
+            | DescriptionComponentMessage of DescriptionComponentMessage
         
         let update message model =
             let messageUpdate message model = model            
             match message with
             | ChartMessage message ->
                 { model with UserData = SeriesChartComponent.update messageUpdate message model.UserData }
+            | DescriptionComponentMessage message ->
+                { model with Description = DescriptionComponent.update message model.Description }
+                
             
         type OverviewComponent() =       
             inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
@@ -227,10 +277,15 @@ module ChatComponent =
             
             override this.View model dispatch =
                 chatOverviewTemplate
-                    .UsersCountGraph(
-                         ecomp<UserDataComponent,_,_> model.UserData ^fun message -> dispatch (ChartMessage(message))                   
+                    .Description(
+                        ecomp<DescriptionComponent,_,_> model.Description ^fun message -> 
+                            dispatch (DescriptionComponentMessage(message)) 
                     )
-                    .Elt()    
+                    .UsersCountGraph(
+                        ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
+                            dispatch (ChartMessage(message))                   
+                    )
+                    .Elt()
     
     type MainTemplate = Template<"""frontend/templates/main.html""">
     
@@ -251,7 +306,6 @@ module ChatComponent =
     type ChatComponentMessage =
         | DoNothing
         | OverviewComponentMessage of OverviewComponentMessage
-        | SetSection of SectionName
         | ChangeSection of SectionName
         
     type ChatComponentModel = {
@@ -263,8 +317,6 @@ module ChatComponent =
         match message with
         | DoNothing ->
             model
-        | SetSection name ->
-            { model with CurrentSection = name }  
         | ChangeSection name ->
             { model with CurrentSection = name }
         | OverviewComponentMessage message ->
@@ -294,7 +346,10 @@ module ChatComponent =
                             h1 ["class" => "ui header"] [text "Users"]
                         ]
                         
-            mainTemplate.SectionMenu(menu).Content(content).Elt()
+            mainTemplate
+                .SectionMenu(menu)
+                .Content(content)
+                .Elt()
             
 module MainComponent = 
     open HeaderComponent
@@ -324,12 +379,25 @@ module MainComponent =
         Router.infer SetPage (fun m -> m.Page)
     
     let update (remoteServiceProvider: IRemoteServiceProvider) =
-        fun message model ->
+        let chatDataService = remoteServiceProvider.GetService<ChatDataService>()
+        let overviewInitCommand chatName = 
+            Cmd.ofAsync 
+                chatDataService.GetChatData (chatName)
+                (fun data ->
+                    let description = Description.FromServiceData(data)
+                    (ChatComponentMessage(OverviewComponentMessage(DescriptionComponentMessage(SetDescription(description)))))) 
+                (fun exn -> LogError exn)  
+        fun message (model: MainComponentModel) ->
             match message with
             | DoNothing ->
                 model, []
             | InitPage -> 
-                model, []
+                let command =
+                    match model.Chat.CurrentSection with
+                    | Overview ->
+                        overviewInitCommand model.Header.CurrentChat
+                    | _ -> []
+                model, command
             | SetPage page ->
                 { model with Page = page }, []
             | LogError e ->
@@ -339,7 +407,15 @@ module MainComponent =
                 let command =
                    match message with
                     | ChangeSection section ->
-                        Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                        let loadCommand = 
+                            match section with
+                            | Overview ->
+                                overviewInitCommand model.Header.CurrentChat
+                            | _ -> []
+                        Cmd.batch [
+                            loadCommand
+                            Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                        ]
                     | _ ->
                         []
                 
@@ -348,10 +424,15 @@ module MainComponent =
                 let command =
                    match message with
                     | ChangeChat chat ->
-                        Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
-                    | _ ->
-                        []
-                
+                        let loadCommand = 
+                            match model.Chat.CurrentSection with
+                            | Overview ->
+                                overviewInitCommand chat
+                            | _ -> []
+                        Cmd.batch [
+                            loadCommand
+                            Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
+                        ]              
                 { model with Header = HeaderComponent.update message model.Header }, command
             
     let view model dispatch =
@@ -381,11 +462,11 @@ module MainComponent =
         let getRouteData() =
             match getCurrentRoute() with
             | Some(SetPage(page & Chat(chat, section))) ->
-                let chatName = Option.defaultValue Dotnetruchat (ChatName.FromString(chat))
+                let chatName = Option.defaultValue Fsharpchat (Chat.FromString(chat))
                 let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
                 page, chatName, sectionName
             | _ ->
-                (Chat(Dotnetruchat.UrlName, Overview.UrlName)), Dotnetruchat, Overview
+                (Chat(Fsharpchat.UrlName, Overview.UrlName)), Fsharpchat, Overview
 
         let createInitModel () =                             
             let (page, chatName, sectionName) = getRouteData()            
@@ -398,13 +479,17 @@ module MainComponent =
                     CurrentSection = sectionName
                     Overview = {
                         UserData = SeriesChartComponentModel.Default
+                        Description = {
+                            Data = NotLoaded
+                        }
                     }
                 }
             }
                     
         let createInitCommand() = 
             Cmd.batch [            
-                Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)  
+                Cmd.ofAsync SemanticUi.initJs () (fun _ -> DoNothing) (fun exn -> LogError exn)
+                Cmd.ofMsg InitPage
             ]
 
         override this.Program =
