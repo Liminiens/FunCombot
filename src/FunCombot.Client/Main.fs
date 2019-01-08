@@ -267,8 +267,7 @@ module ChatComponent =
             | ChartMessage message ->
                 { model with UserData = SeriesChartComponent.update messageUpdate message model.UserData }
             | DescriptionComponentMessage message ->
-                { model with Description = DescriptionComponent.update message model.Description }
-                
+                { model with Description = DescriptionComponent.update message model.Description }               
             
         type OverviewComponent() =       
             inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
@@ -340,7 +339,8 @@ module ChatComponent =
                 cond model.CurrentSection ^fun section ->
                     match section with
                     | Overview ->
-                        ecomp<OverviewComponent,_,_> model.Overview ^fun message -> dispatch (OverviewComponentMessage(message))
+                        ecomp<OverviewComponent,_,_> model.Overview ^fun message -> 
+                            dispatch (OverviewComponentMessage(message))
                     | Users ->
                         div [] [
                             h1 ["class" => "ui header"] [text "Users"]
@@ -407,15 +407,7 @@ module MainComponent =
                 let command =
                    match message with
                     | ChangeSection section ->
-                        let loadCommand = 
-                            match section with
-                            | Overview ->
-                                overviewInitCommand model.Header.CurrentChat
-                            | _ -> []
-                        Cmd.batch [
-                            loadCommand
-                            Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
-                        ]
+                        Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
                     | _ ->
                         []
                 
