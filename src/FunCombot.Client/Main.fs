@@ -43,6 +43,8 @@ module SeriesChartComponent =
          Unit: GraphUnit }
      
    type SeriesChartComponentMessage<'TMessage> =
+       | DoNothing
+       | LogError of exn
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
        | SetUnit of GraphUnit
@@ -63,24 +65,38 @@ module SeriesChartComponent =
             { name = "users"; data = values };
         ];
 
-   let update messageUpdateFn message model =
+   let update messageUpdateFn message (model: SeriesChartComponentModel) =
        match message with
+       | DoNothing ->
+           model, []
+       | LogError exn ->
+           eprintfn "%O" exn
+           model, []
        | SetDateFrom fromDate ->
            { model with FromDateValue = fromDate
                         ToDateMin = fromDate
-                        ToDateValue = if fromDate > model.ToDateValue then fromDate.AddMonths(1) else model.ToDateValue }                         
+                        ToDateValue = if fromDate > model.ToDateValue then fromDate.AddMonths(1) else model.ToDateValue }, []                         
        | SetDateTo date ->
-           { model with ToDateValue = date }
+           { model with ToDateValue = date }, []
        | SetUnit unitValue ->
-           { model with Unit = unitValue }
-       | LoadData data ->
-           loadData model.Id data
-           { model with IsLoaded = true }
+           { model with Unit = unitValue }, []
+       | LoadData data ->        
+           let command =
+               let loadDataForModel = loadData model.Id
+               Cmd.ofAsync
+                   loadDataForModel data
+                   (fun _ -> DoNothing)
+                   (fun e -> LogError e)
+           { model with IsLoaded = true }, command
        | UnloadData ->
-           unloadData model.Id           
-           { model with IsLoaded = false }
+           let command =
+               Cmd.ofAsync
+                   unloadData model.Id
+                   (fun _ -> DoNothing)
+                   (fun e -> LogError e)
+           { model with IsLoaded = false }, command
        | Message tMessage ->
-           messageUpdateFn tMessage model
+           messageUpdateFn tMessage model, []
     
    type SeriesChartComponent<'TMessage>(id: string, elementId: string) =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
@@ -116,14 +132,6 @@ module SeriesChartComponent =
         
         override this.OnAfterRender() =
             Charting.createChart id elementId configuration
-            loadData id [
-                (stringToDate "2013-01-01", 730);
-                (stringToDate "2013-01-02", 330);
-                (stringToDate "2013-01-03", 330);
-                (stringToDate "2013-01-04", 630);
-                (stringToDate "2013-01-05", 230);
-                (stringToDate "2013-01-06", 130)
-            ];
         
         override this.View model dispatch =
             let graph =
@@ -285,9 +293,10 @@ module ChatComponent =
             let messageUpdate message model = model            
             match message with
             | ChartComponentMessage message ->
-                { model with UserData = SeriesChartComponent.update messageUpdate message model.UserData }
+                let (newModel, commands) = SeriesChartComponent.update messageUpdate message model.UserData
+                { model with UserData = newModel }, convertSubs (fun c -> ChartComponentMessage(c)) commands
             | DescriptionComponentMessage message ->
-                { model with Description = DescriptionComponent.update message model.Description }               
+                { model with Description = DescriptionComponent.update message model.Description }, []               
             
         type OverviewComponent() =       
             inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
@@ -323,7 +332,6 @@ module ChatComponent =
             | _ -> None
         
     type ChatComponentMessage =
-        | DoNothing
         | OverviewComponentMessage of OverviewComponentMessage
         | ChangeSection of SectionName
         
@@ -334,12 +342,11 @@ module ChatComponent =
     
     let update message model =
         match message with
-        | DoNothing ->
-            model
         | ChangeSection name ->
-            { model with CurrentSection = name }
+            { model with CurrentSection = name }, []
         | OverviewComponentMessage message ->
-            { model with Overview = OverviewComponent.update message model.Overview }      
+            let (newModel, commands) = OverviewComponent.update message model.Overview
+            { model with Overview = newModel }, Cmd.convertCmds (fun c -> OverviewComponentMessage(c)) commands      
     
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
@@ -459,8 +466,8 @@ module MainComponent =
                     | ChangeSection section ->
                         Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
                     | _ -> []
-                
-                { model with Chat = ChatComponent.update message model.Chat }, command
+                let (newModel, commands) = ChatComponent.update message model.Chat
+                { model with Chat = newModel }, Cmd.convertCmds (fun c -> ChatComponentMessage(c)) commands |> Cmd.batch
             | HeaderComponentMessage message ->
                 let command =
                    match message with

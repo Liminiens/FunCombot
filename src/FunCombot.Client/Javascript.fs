@@ -65,11 +65,11 @@ module Charting =
     
     let loadData (id: string) (data: list<IColumnData>) =
         getChartFunctionName "loadData"
-        |> jsInvokeIgnore [|id; data|]
+        |> jsInvoke<unit> [|id; data|]
     
     let unloadData (id: string) (columnNames: list<string>) =
         getChartFunctionName "unloadData"
-        |> jsInvokeIgnore [|id; columnNames|]
+        |> jsInvoke<unit> [|id; columnNames|]
         
     let destroyChart (id: string) =
         getChartFunctionName "destroyChart"

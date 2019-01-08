@@ -4,6 +4,17 @@ open System
 open Microsoft.FSharp.Reflection
 
 [<AutoOpen>]
+module Cmd =
+    open Elmish
+    let convertSubs (f: 'T -> 'TTo) (commands: Sub<'T> list) =
+        commands
+        |> List.map (fun cmd -> cmd |> Cmd.ofSub |> Cmd.map f)
+    
+    let convertCmds (f: 'T -> 'TTo) (commands: Cmd<'T> list) =
+        commands
+        |> List.map (fun cmd -> cmd |> Cmd.map f)       
+        
+[<AutoOpen>]
 module Common =
     let inline (^) f x = f x
 
