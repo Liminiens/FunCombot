@@ -1,7 +1,11 @@
 @import "sizes";
 
+.ui.segment.chart {
+  padding-left: 0;
+}
+
 .chart {
   @include breakpoint(all) {
-    height: 400px;
+    height: 450px;
   }
 }

@@ -127,8 +127,8 @@ module SeriesChartComponent =
         
         override this.View model dispatch =
             let graph =
-                div [attr.id elementId; attr.classes ["chart"]] [
-                    if not model.IsLoaded then yield CommonNodes.loadingDiv
+                let classes = [yield "ui basic segment"; yield "chart"; if not model.IsLoaded then yield "loading"]
+                div [attr.id elementId; attr.classes classes] [
                 ]
             
             let units =

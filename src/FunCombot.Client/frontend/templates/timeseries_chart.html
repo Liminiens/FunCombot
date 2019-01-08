@@ -1,34 +1,20 @@
-<div class="ui grid">
-    <div class="row">
-        <div class="six wide column">
-            <div class="ui form">
-                <div class="field">
-                    ${FromInput}
-                </div>
-            </div>
+<div class="ui form">
+    <div class="equal width fields">
+        <div class="field">
+            ${FromInput}
         </div>
-        <div class="six wide column">
-            <div class="ui form">
-                <div class="field">
-                    ${ToInput}
-                </div>
-            </div>
+        <div class="field">
+            ${ToInput}
         </div>
-        <div class="four wide column">
-            <div class="ui form">
-                <div class="field">
-                    <div class="field">
-                        <label>Unit:
-                            <select bind="${SelectedUnit}">
-                                ${Units}
-                            </select>
-                        </label>
-                    </div>
-                </div>
-            </div>
+        <div class="field">
+            <label>Unit:
+                <select bind="${SelectedUnit}">
+                    ${Units}
+                </select>
+            </label>
         </div>
     </div>
-    <div class="row">
-        ${Graph}
-    </div>
+</div>
+<div>
+    ${Graph}
 </div>
