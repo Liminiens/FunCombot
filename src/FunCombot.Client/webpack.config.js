@@ -17,7 +17,7 @@ module.exports = {
     output: {
         filename: '[name].js',
         path: scriptsDir,
-        library: 'funcombot',
+        library: 'statsbot',
         libraryTarget: 'window'
     },
     devtool: 'inline-source-map',

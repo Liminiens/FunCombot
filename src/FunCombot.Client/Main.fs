@@ -14,62 +14,55 @@ module CommonNodes =
 
     let loadingDiv = div ["class" => "ui active centered loader"] []
 
+[<RequireQualifiedAccess>]
+module Identificators =
+    let usersChartId = Guid().ToString()
+
 module SeriesChartComponent =
    open Charting
    
    type TimeseriesChartTemplate = Template<"""frontend/templates/timeseries_chart.html""">
-   
-   type GraphUnit =
-       | Day
-       | Week
-       | Month
-       member this.Name =
-           match this with
-           | Day -> "day"
-           | Week -> "week"
-           | Month -> "month"
-           
-       static member FromString(str) =
-           match str with
-           | "day" -> Some Day
-           | "week" -> Some Week
-           | "month" -> Some Month
-           | _ -> None
-        
+          
    let dateToString (date: DateTime) = 
        date.ToString("yyyy-MM-dd")
 
    let stringToDate (str: string) =
        DateTime.ParseExact(str, "yyyy-MM-dd", null)
-        
+   
+   type TimeseriesData = list<(DateTime * int)>
+   
    type SeriesChartComponentModel =
-       { FromDateMin: DateTime
+       { Id: string
+         IsLoaded: bool
+         FromDateMin: DateTime
          FromDateMax: DateTime
          FromDateValue: DateTime
          ToDateMin: DateTime
          ToDateMax: DateTime
          ToDateValue: DateTime
          Unit: GraphUnit }
-       
-       static member Default =
-           let now = DateTime.Now
-           let dateFrom = new DateTime(now.Year, now.Month, 1)
-           let dateTo = new DateTime(now.Year, now.Month + 1, 1)
-           
-           { FromDateMin = dateFrom
-             FromDateMax = stringToDate "2030-01-01" 
-             FromDateValue = dateFrom 
-             ToDateMin = dateTo
-             ToDateMax = stringToDate "2030-01-01" 
-             ToDateValue = dateTo
-             Unit = Week }
      
    type SeriesChartComponentMessage<'TMessage> =
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
        | SetUnit of GraphUnit
+       | UnloadData
+       | LoadData of TimeseriesData
        | Message of 'TMessage
    
+   let unloadData id = 
+        Charting.unloadData id ["x";"users"]
+
+   let loadData id (data: TimeseriesData) =
+        let (dates, values) =
+            data
+            |> List.fold (fun acc (date, value) -> [dateToString date :> obj, value :> obj] @ acc) []
+            |> List.unzip
+        Charting.loadData id [
+            { name = "x"; data = dates };
+            { name = "users"; data = values };
+        ];
+
    let update messageUpdateFn message model =
        match message with
        | SetDateFrom fromDate ->
@@ -80,12 +73,30 @@ module SeriesChartComponent =
            { model with ToDateValue = date }
        | SetUnit unitValue ->
            { model with Unit = unitValue }
+       | LoadData data ->
+           loadData model.Id data
+           { model with IsLoaded = true }
+       | UnloadData ->
+           unloadData model.Id           
+           { model with IsLoaded = false }
        | Message tMessage ->
            messageUpdateFn tMessage model
     
-   type SeriesChartComponent<'TMessage>(elementId: string, configuration: IChartConfiguration) =
+   type SeriesChartComponent<'TMessage>(id: string, elementId: string) =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
         
+        let configuration = {
+            x = "x"
+            columns = []
+            axis = {
+                   x = {
+                       ``type`` = "timeseries"
+                       tick = {
+                            format = "%Y-%m-%d"
+                       }
+                   }
+           }
+        }
         let template = TimeseriesChartTemplate()
                   
         let createDateInput labelText value min max dispatch = 
@@ -102,14 +113,22 @@ module SeriesChartComponent =
                                if valid then dispatch value ]
                 ]       
             ]
-
+        
         override this.OnAfterRender() =
-            Charting.createChart elementId configuration
+            Charting.createChart id elementId configuration
+            loadData id [
+                (stringToDate "2013-01-01", 730);
+                (stringToDate "2013-01-02", 330);
+                (stringToDate "2013-01-03", 330);
+                (stringToDate "2013-01-04", 630);
+                (stringToDate "2013-01-05", 230);
+                (stringToDate "2013-01-06", 130)
+            ];
         
         override this.View model dispatch =
             let graph =
                 div [attr.id elementId; attr.classes ["chart"]] [
-                    div ["class" => "ui active centered loader"] []
+                    if not model.IsLoaded then yield CommonNodes.loadingDiv
                 ]
             
             let units =
@@ -134,29 +153,30 @@ module SeriesChartComponent =
                 .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
                 .Graph(graph)
                 .Elt()
-
+        
+        override this.Finalize() =
+            Charting.destroyChart id
+        
 module UserDataComponent =
-    open Charting
     open SeriesChartComponent
     
-    let chartData = {
-        x = "x";
-        columns = [
-            { name = "x"; data = ["2013-01-01"; "2013-01-02"; "2013-01-03"; "2013-01-04"; "2013-01-05"; "2013-01-06"] };
-            { name = "users"; data = [30; 200; 100; 400; 150; 250] };
-        ];
-        axis = {
-               x = {
-                   ``type`` = "timeseries"
-                   tick = {
-                        format = "%Y-%m-%d"
-                   }
-               }
-       }
-    }
-    
+    let getDefaultModel id = 
+        let now = DateTime.Now
+        let dateFrom = new DateTime(now.Year, now.Month, 1)
+        let dateTo = new DateTime(now.Year, now.Month + 1, 1)
+           
+        { Id = id
+          IsLoaded = false
+          FromDateMin = dateFrom
+          FromDateMax = stringToDate "2030-01-01" 
+          FromDateValue = dateFrom 
+          ToDateMin = dateTo
+          ToDateMax = stringToDate "2030-01-01" 
+          ToDateValue = dateTo
+          Unit = Week }
+
     type UserDataComponent() =
-        inherit SeriesChartComponent<unit>("test", chartData)
+        inherit SeriesChartComponent<unit>(Identificators.usersChartId, "user_data")
          
 
 module HeaderComponent =   
@@ -221,12 +241,12 @@ module ChatComponent =
             }
 
             type DescriptionComponentMessage =
-                | SetDescription of Description
+                | SetDescription of DynamicModel<Description>
             
             let update message model =        
                 match message with
                 | SetDescription description ->
-                     { model with Data = Model description }
+                     { model with Data = description }
 
             type DescriptionComponent() =       
                 inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()
@@ -258,13 +278,13 @@ module ChatComponent =
         }
         
         type OverviewComponentMessage =
-            | ChartMessage of SeriesChartComponentMessage<unit>
+            | ChartComponentMessage of SeriesChartComponentMessage<unit>
             | DescriptionComponentMessage of DescriptionComponentMessage
         
         let update message model =
             let messageUpdate message model = model            
             match message with
-            | ChartMessage message ->
+            | ChartComponentMessage message ->
                 { model with UserData = SeriesChartComponent.update messageUpdate message model.UserData }
             | DescriptionComponentMessage message ->
                 { model with Description = DescriptionComponent.update message model.Description }               
@@ -282,7 +302,7 @@ module ChatComponent =
                     )
                     .UsersCountGraph(
                         ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
-                            dispatch (ChartMessage(message))                   
+                            dispatch (ChartComponentMessage(message))                   
                     )
                     .Elt()
     
@@ -377,39 +397,68 @@ module MainComponent =
     
     let router: Router<ApplicationPage, MainComponentModel, MainComponentMessage> =
         Router.infer SetPage (fun m -> m.Page)
-    
+        
+    let chartComponentMessage message = 
+        ChatComponentMessage(OverviewComponentMessage(ChartComponentMessage(message)))
+        
+    let descriptionComponentMessage message = 
+        ChatComponentMessage(OverviewComponentMessage(DescriptionComponentMessage(message)))
+        
     let update (remoteServiceProvider: IRemoteServiceProvider) =
         let chatDataService = remoteServiceProvider.GetService<ChatDataService>()
-        let overviewInitCommand chatName = 
-            Cmd.ofAsync 
-                chatDataService.GetChatData (chatName)
-                (fun data ->
-                    let description = Description.FromServiceData(data)
-                    (ChatComponentMessage(OverviewComponentMessage(DescriptionComponentMessage(SetDescription(description)))))) 
-                (fun exn -> LogError exn)  
+        let overviewInitCommand chat =
+            Cmd.batch [
+                SetDescription(NotLoaded) |> descriptionComponentMessage |> Cmd.ofMsg;
+                Cmd.ofAsync 
+                    chatDataService.GetChatData (chat)
+                    (fun data ->
+                        Description.FromServiceData(data)
+                        |> (Model >> SetDescription)
+                        |> descriptionComponentMessage) 
+                    (fun exn -> LogError exn)
+            ]
+        let overviewChartLoadCommand chat (model: SeriesChartComponentModel) = 
+            Cmd.batch [
+                chartComponentMessage UnloadData |> Cmd.ofMsg;
+                Cmd.ofAsync 
+                    chatDataService.GetUserCount {
+                        Chat = chat 
+                        From = model.FromDateValue
+                        To = model.ToDateValue
+                        Unit = model.Unit
+                    }
+                    (fun data ->
+                        data |> List.map ^ fun item -> item.Date, item.Count
+                        |> LoadData
+                        |> chartComponentMessage)
+                    (fun exn -> LogError exn) 
+             ]
+        
         fun message (model: MainComponentModel) ->
             match message with
             | DoNothing ->
+                model, []
+            | LogError e ->
+                eprintf "%O" e
                 model, []
             | InitPage -> 
                 let command =
                     match model.Chat.CurrentSection with
                     | Overview ->
-                        overviewInitCommand model.Header.CurrentChat
+                        Cmd.batch [
+                            overviewChartLoadCommand model.Header.CurrentChat model.Chat.Overview.UserData 
+                            overviewInitCommand model.Header.CurrentChat
+                        ]
                     | _ -> []
                 model, command
             | SetPage page ->
                 { model with Page = page }, []
-            | LogError e ->
-                eprintf "%O" e
-                model, []
             | ChatComponentMessage message ->
                 let command =
                    match message with
                     | ChangeSection section ->
                         Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
-                    | _ ->
-                        []
+                    | _ -> []
                 
                 { model with Chat = ChatComponent.update message model.Chat }, command
             | HeaderComponentMessage message ->
@@ -419,7 +468,10 @@ module MainComponent =
                         let loadCommand = 
                             match model.Chat.CurrentSection with
                             | Overview ->
-                                overviewInitCommand chat
+                                Cmd.batch [
+                                    overviewChartLoadCommand chat model.Chat.Overview.UserData 
+                                    overviewInitCommand chat
+                                ]
                             | _ -> []
                         Cmd.batch [
                             loadCommand
@@ -470,7 +522,7 @@ module MainComponent =
                 Chat = {
                     CurrentSection = sectionName
                     Overview = {
-                        UserData = SeriesChartComponentModel.Default
+                        UserData = UserDataComponent.getDefaultModel Identificators.usersChartId
                         Description = {
                             Data = NotLoaded
                         }

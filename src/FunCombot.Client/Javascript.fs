@@ -9,7 +9,7 @@ module JSRuntimeExt =
     type FunctionName =
         private FunctionName of string
             static member Create(name: string) =
-                FunctionName(sprintf "funcombot.%s" name)
+                FunctionName(sprintf "statsbot.%s" name)
                 
     let jsInvoke<'T> args (FunctionName(func)) =
         JSRuntime.Current.InvokeAsync<'T>(func, args)
@@ -57,8 +57,20 @@ module Charting =
         axis: IAxis
     }
         
-    let createChart id (data: IChartConfiguration) =
-        let bindTo = sprintf "#%s" id
+    let createChart (id: string) bindTo (data: IChartConfiguration) =
+        let bindTo = sprintf "#%s" bindTo
         
         getChartFunctionName "drawChart"
-        |> jsInvokeIgnore [|bindTo; data|]
+        |> jsInvokeIgnore [|id; bindTo; data|]
+    
+    let loadData (id: string) (data: list<IColumnData>) =
+        getChartFunctionName "loadData"
+        |> jsInvokeIgnore [|id; data|]
+    
+    let unloadData (id: string) (columnNames: list<string>) =
+        getChartFunctionName "unloadData"
+        |> jsInvokeIgnore [|id; columnNames|]
+        
+    let destroyChart (id: string) =
+        getChartFunctionName "destroyChart"
+        |> jsInvokeIgnore [|id|]
