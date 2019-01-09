@@ -1,10 +1,6 @@
 ﻿namespace FunCombot.Client.Types
 
 open Bolero
-open Bolero.Remoting
-
-type IRemoteServiceProvider = 
-    abstract GetService<'T when 'T :> IRemoteService> : unit -> 'T
 
 type ApplicationPage =
     | [<EndPoint("/")>]

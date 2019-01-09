@@ -4,6 +4,7 @@ open Microsoft.AspNetCore.Blazor.Builder
 open Microsoft.AspNetCore.Blazor.Hosting
 open Microsoft.Extensions.DependencyInjection
 open Bolero.Remoting
+open Components.Main.MainComponent
 
 type Startup() =
 
@@ -11,7 +12,7 @@ type Startup() =
         services.AddSingleton<IRemoteProvider, ClientRemoteProvider>() |> ignore
 
     member __.Configure(app: IBlazorApplicationBuilder) =
-        app.AddComponent<Main.MainComponent.MainComponent>("#main")
+        app.AddComponent<MainComponent>("#main")
 
 module Program =
 
