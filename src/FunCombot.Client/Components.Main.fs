@@ -52,12 +52,12 @@ module MainComponent =
                 eprintf "%O" e
                 model, []
             | InitPage -> 
-                let command =
+                let dataLoadCommand =
                     match model.Chat.CurrentSection with
                     | Overview ->
-                        Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
+                        Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                     | _ -> []
-                model, command
+                model, dataLoadCommand
             | SetPage page ->
                 { model with Page = page }, []
             | ChatComponentMessage message ->
@@ -67,11 +67,11 @@ module MainComponent =
                         match section with
                         | Overview ->
                             Cmd.batch [
-                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
-                                Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
+                                Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
                             ]
                         | _ -> 
-                            Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                            Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
                 let command =
@@ -100,9 +100,8 @@ module MainComponent =
             
     let view model dispatch =
         let header =
-            ecomp<HeaderComponent,_,_> {
-                CurrentChat = model.Header.CurrentChat
-            } ^fun message -> dispatch (HeaderComponentMessage message)
+            ecomp<HeaderComponent,_,_> model.Header ^fun message ->
+                dispatch (HeaderComponentMessage message)
         let chatInfo =
             ecomp<ChatComponent,_,_> {
                 CurrentSection = model.Chat.CurrentSection
@@ -136,7 +135,7 @@ module MainComponent =
             {
                 Page = page
                 Header = {
-                    CurrentChat = chatName
+                    Chat = chatName
                 }
                 Chat = {
                     CurrentSection = sectionName

@@ -8,6 +8,7 @@ open FunCombot.Client.Types
 open FunCombot.Client.Components
 
 module DescriptionComponent = 
+    open System
     open FunCombot.Client.Remoting.Chat
 
     type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">
@@ -41,11 +42,13 @@ module DescriptionComponent =
         | SetDescription description ->
              { model with Data = description }, []
         | LoadDescriptionData chat ->
+            let getChatDataCached =
+                ClientSideCache.getOrCreateAsyncFn chatDataService.GetChatData (TimeSpan.FromMinutes(5.))
             model,
             Cmd.batch [
                 SetDescription(NotLoaded) |> Cmd.ofMsg;
                 Cmd.ofAsync 
-                    chatDataService.GetChatData (chat)
+                    getChatDataCached chat
                     (fun data ->
                         Description.FromServiceData(data)
                         |> (Model >> SetDescription)) 

@@ -12,7 +12,7 @@ module HeaderComponent =
         | ChangeChat of Chat
     
     type HeaderComponentModel = {
-        CurrentChat: Chat
+        Chat: Chat
     }
     
     let headerTemplate = HeaderTemplate()
@@ -20,7 +20,7 @@ module HeaderComponent =
     let update message model =
         match message with
         | ChangeChat chat ->
-            { model with CurrentChat = chat }
+            { model with Chat = chat }
             
     type HeaderComponent() =
         inherit ElmishComponent<HeaderComponentModel, HeaderComponentMessage>()
@@ -28,13 +28,13 @@ module HeaderComponent =
         override this.View model dispatch =
             let dropDown =
                 forEach getUnionCases<Chat> ^fun (case, name, _) ->
-                    a [ attr.classes [yield "item"; if model.CurrentChat = case then yield "active selected"];
+                    a [ attr.classes [yield "item"; if model.Chat = case then yield "active selected"];
                         on.click ^fun ev ->
-                            if model.CurrentChat <> case then dispatch (ChangeChat case)] [
+                            if model.Chat <> case then dispatch (ChangeChat case)] [
                         text case.DisplayName
                     ]
             headerTemplate
                 .HeaderItem(text "StatsBot")
                 .DropdownItems(dropDown)
-                .ChatName(text model.CurrentChat.DisplayName)
+                .ChatName(text model.Chat.DisplayName)
                 .Elt()

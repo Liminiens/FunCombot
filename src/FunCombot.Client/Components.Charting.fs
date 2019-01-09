@@ -210,11 +210,13 @@ module UserDataComponent =
                         model.Model with Chat = chat
             }}, []
         | LoadChartDataFromService ->
+            let getUserCountCached =
+                ClientSideCache.getOrCreateAsyncFn chatDataService.GetUserCount (TimeSpan.FromMinutes(5.))
             model,
             Cmd.batch [
                 Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                 Cmd.ofAsync 
-                    chatDataService.GetUserCount {
+                    getUserCountCached {
                         Chat = model.Model.Chat 
                         From = model.SeriesData.FromDateValue
                         To = model.SeriesData.ToDateValue
