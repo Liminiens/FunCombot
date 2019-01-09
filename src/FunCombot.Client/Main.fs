@@ -41,6 +41,11 @@ module SeriesChartComponent =
          ToDateMax: DateTime
          ToDateValue: DateTime
          Unit: GraphUnit }
+      
+   type SeriesChartComponentModelContainer<'T> = {
+       SeriesData: SeriesChartComponentModel
+       Model: 'T
+   }
      
    type SeriesChartComponentMessage =
        | DoNothing
@@ -64,7 +69,7 @@ module SeriesChartComponent =
             { name = "users"; data = values };
         ];
 
-   let update message (model: SeriesChartComponentModel) =
+   let update message model =
        match message with
        | DoNothing ->
            model, []
@@ -72,31 +77,42 @@ module SeriesChartComponent =
            eprintfn "%O" exn
            model, []
        | SetDateFrom fromDate ->
-           { model with FromDateValue = fromDate
-                        ToDateMin = fromDate
-                        ToDateValue = if fromDate > model.ToDateValue then fromDate.AddMonths(1) else model.ToDateValue }, []                         
+           { model with SeriesData = {
+                       model.SeriesData with
+                           FromDateValue = fromDate
+                           ToDateMin = fromDate
+                           ToDateValue = if fromDate > model.SeriesData.ToDateValue then fromDate.AddMonths(1) else model.SeriesData.ToDateValue }
+           }, []                         
        | SetDateTo date ->
-           { model with ToDateValue = date }, []
+           { model with SeriesData = {
+                       model.SeriesData with ToDateValue = date
+           } }, []
        | SetUnit unitValue ->
-           { model with Unit = unitValue }, []
+           { model with SeriesData = {
+                       model.SeriesData with Unit = unitValue
+           } }, []
        | LoadData data ->        
            let command =
-               let loadDataForModel = loadData model.Id
+               let loadDataForModel = loadData model.SeriesData.Id
                Cmd.ofAsync
                    loadDataForModel data
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
-           { model with IsLoaded = true }, command
+           { model with SeriesData = {
+                       model.SeriesData with IsLoaded = true
+           } }, command
        | UnloadData ->
            let command =
                Cmd.ofAsync
-                   unloadData model.Id
+                   unloadData model.SeriesData.Id
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
-           { model with IsLoaded = false }, command
+           { model with SeriesData = {
+                       model.SeriesData with IsLoaded = false
+           }}, command
     
-   type SeriesChartComponent<'TMessage>(id: string, elementId: string) =
-        inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage>()
+   type SeriesChartComponent<'T>(id: string, elementId: string) =
+        inherit ElmishComponent<SeriesChartComponentModelContainer<'T>, SeriesChartComponentMessage>()
         
         let configuration = {
             x = "x"
@@ -132,7 +148,7 @@ module SeriesChartComponent =
         
         override this.View model dispatch =
             let graph =
-                let classes = [yield "ui basic segment"; yield "chart"; if not model.IsLoaded then yield "loading"]
+                let classes = [yield "ui basic segment"; yield "chart"; if not model.SeriesData.IsLoaded then yield "loading"]
                 div [attr.id elementId; attr.classes classes] [
                 ]
             
@@ -141,11 +157,11 @@ module SeriesChartComponent =
                     option [attr.value tag] [text case.Name]
             
             let fromInput =
-                createDateInput "From:" model.FromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
+                createDateInput "From:" model.SeriesData.FromDateValue model.SeriesData.FromDateMin model.SeriesData.FromDateMax ^fun value -> 
                     dispatch (SetDateFrom(stringToDate value))
             
             let toInput =
-                createDateInput "To:" model.ToDateValue model.ToDateMin model.ToDateMax ^fun value -> 
+                createDateInput "To:" model.SeriesData.ToDateValue model.SeriesData.ToDateMin model.SeriesData.ToDateMax ^fun value -> 
                     dispatch (SetDateTo(stringToDate value))
             
             let parseUnitOrDefault unit = 
@@ -155,7 +171,7 @@ module SeriesChartComponent =
                 .FromInput(fromInput)
                 .ToInput(toInput)
                 .Units(units)
-                .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
+                .SelectedUnit(model.SeriesData.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
                 .Graph(graph)
                 .Elt()
         
@@ -165,6 +181,8 @@ module SeriesChartComponent =
 module UserDataComponent =
     open FunCombot.Client.Remoting.Chat
     open SeriesChartComponent
+    
+    type UserDataComponentModel = { Chat: Chat }
     
     let getDefaultModel id = 
         let now = DateTime.Now
@@ -183,25 +201,30 @@ module UserDataComponent =
     
     type UserDataComponentMessage = 
         | LogError of exn
-        | LoadChartDataFromService of Chat        
+        | SetChat of Chat 
+        | LoadChartDataFromService       
         | SeriesChartComponentMessage of SeriesChartComponentMessage
     
-    let update (provider: IRemoteServiceProvider) messageUpdateFn message model =       
+    let update (provider: IRemoteServiceProvider) message (model: SeriesChartComponentModelContainer<UserDataComponentModel>) =       
         let chatDataService = provider.GetService<ChatDataService>()
         match message with
         | LogError exn ->
             eprintfn "%O" exn
             model, []
-        | LoadChartDataFromService chat ->
+        | SetChat chat ->
+            { model with Model = {
+                        model.Model with Chat = chat
+            }}, []
+        | LoadChartDataFromService ->
             model,
             Cmd.batch [
                 Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                 Cmd.ofAsync 
                     chatDataService.GetUserCount {
-                        Chat = chat 
-                        From = model.FromDateValue
-                        To = model.ToDateValue
-                        Unit = model.Unit
+                        Chat = model.Model.Chat 
+                        From = model.SeriesData.FromDateValue
+                        To = model.SeriesData.ToDateValue
+                        Unit = model.SeriesData.Unit
                     }
                     (fun data ->
                         data
@@ -210,11 +233,11 @@ module UserDataComponent =
                     (fun exn -> LogError exn)
             ]
         | SeriesChartComponentMessage seriesMessage ->
-           let (newModel, commands) = messageUpdateFn seriesMessage model
+           let (newModel, commands) = SeriesChartComponent.update seriesMessage model
            newModel, Cmd.convertSubs SeriesChartComponentMessage commands   
     
     type UserDataComponent() =
-        inherit SeriesChartComponent<UserDataComponentMessage>(Identificators.usersChartId, "user_data")
+        inherit SeriesChartComponent<UserDataComponentModel>(Identificators.usersChartId, "user_data")
          
 
 module HeaderComponent =   
@@ -328,7 +351,7 @@ module ChatComponent =
         type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
 
         type OverviewComponentModel = {
-            UserData: SeriesChartComponentModel
+            UserData: SeriesChartComponentModelContainer<UserDataComponentModel>
             Description: DescriptionModel
         }
         
@@ -338,17 +361,16 @@ module ChatComponent =
             | LoadOverviewData of Chat
         
         let update (provider: IRemoteServiceProvider) message model =
-            let messageUpdate message model = SeriesChartComponent.update message model        
             match message with
             | ChartComponentMessage message ->
-                let (newModel, commands) = UserDataComponent.update provider messageUpdate message model.UserData
+                let (newModel, commands) = UserDataComponent.update provider message model.UserData
                 { model with UserData = newModel }, convertSubs ChartComponentMessage commands
             | DescriptionComponentMessage message ->
                 let (newModel, commands) = DescriptionComponent.update provider message model.Description
                 { model with Description = newModel }, convertSubs DescriptionComponentMessage commands           
-            | LoadOverviewData chat ->
+            | LoadOverviewData chat->
                 model, Cmd.batch [
-                    ChartComponentMessage(LoadChartDataFromService chat) |> Cmd.ofMsg
+                    ChartComponentMessage(LoadChartDataFromService) |> Cmd.ofMsg
                     DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
                 ]
             
@@ -435,6 +457,7 @@ module ChatComponent =
 module MainComponent = 
     open HeaderComponent
     open ChatComponent
+    open UserDataComponent
     open FunCombot.Client.Remoting.Chat
     
     type RootTemplate = Template<"frontend/templates/root.html">
@@ -505,7 +528,10 @@ module MainComponent =
                         let loadCommand = 
                             match model.Chat.CurrentSection with
                             | Overview ->
-                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
+                                Cmd.batch [
+                                    Cmd.ofMsg <| overviewMessage (ChartComponentMessage(SetChat chat))
+                                    Cmd.ofMsg <| overviewMessage (LoadOverviewData chat)
+                                ]
                             | _ -> []
                         Cmd.batch [
                             loadCommand
@@ -556,7 +582,12 @@ module MainComponent =
                 Chat = {
                     CurrentSection = sectionName
                     Overview = {
-                        UserData = UserDataComponent.getDefaultModel Identificators.usersChartId
+                        UserData = {
+                            SeriesData = UserDataComponent.getDefaultModel Identificators.usersChartId
+                            Model = {
+                                Chat = chatName
+                            }
+                        }
                         Description = {
                             Data = NotLoaded
                         }
