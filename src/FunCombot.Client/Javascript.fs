@@ -3,9 +3,7 @@ namespace FunCombot.Client.Javascript
 open System
 open Microsoft.JSInterop
 
-[<AutoOpen>]
 module JSRuntimeExt =
-
     type FunctionName =
         private FunctionName of string
             static member Create(name: string) =
@@ -24,12 +22,16 @@ module JSRuntimeExt =
         jsInvoke<'T> [||] func
 
 module SemanticUi =
+    open JSRuntimeExt
+    
     let initJs () =
         async {
             do! FunctionName.Create "initDropdowns" |> jsInvokeUnit
         }
 
 module Charting =
+    open JSRuntimeExt
+    
     let getChartFunctionName name = 
         name |> (sprintf "charting.%s" >> FunctionName.Create)
         

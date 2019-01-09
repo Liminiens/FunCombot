@@ -4,7 +4,6 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RunCommand>dotnet</RunCommand>
     <RunArguments>blazor serve</RunArguments>
-    <TypeScriptToolsVersion>3.1</TypeScriptToolsVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Common.fs" />
@@ -34,11 +33,5 @@
     <Content Include="postcss.config.js" />
     <Content Include="webpack.config.js" />
   </ItemGroup>
-  <ItemGroup />
-  
-  <ItemGroup>
-    <PackageReference Include="TaskBuilder.fs" Version="2.1.0" />
-  </ItemGroup>
-  
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
