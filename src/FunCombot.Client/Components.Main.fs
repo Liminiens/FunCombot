@@ -13,8 +13,6 @@ open FunCombot.Client.Components.Header
 open FunCombot.Client.Components.Header.HeaderComponent
 open FunCombot.Client.Components.Chat
 open FunCombot.Client.Components.Chat.ChatComponent
-open FunCombot.Client.Components.Chat.OverviewComponent
-open FunCombot.Client.Components.Chat.DescriptionComponent
 open Bolero.Remoting
             
 module MainComponent = 
@@ -44,7 +42,7 @@ module MainComponent =
         ChatComponentMessage(OverviewComponentMessage(message))
         
     let update (provider: IRemoteServiceProvider) =
-        fun message (model: MainComponentModel) ->
+        fun message model ->
             match message with
             | DoNothing ->
                 model, []

@@ -7,127 +7,128 @@ open FunCombot.Client
 open FunCombot.Client.Types
 open FunCombot.Client.Components
 
-module DescriptionComponent = 
-    open System
-    open FunCombot.Client.Remoting.Chat
 
-    type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">
-
-    type Description = 
-        { Description: string
-          TotalUsers: int32
-          ActiveUsers: int32
-          ChangeInTotalUsersForWeek: int32 }
-        static member FromServiceData(data: ChatData) = 
-            { Description = data.Description
-              TotalUsers = data.TotalUsers
-              ActiveUsers = data.ActiveInThreeDays
-              ChangeInTotalUsersForWeek = data.ChangeInTotalUsersForWeek }
-
-    type DescriptionModel = {
-        Data: DynamicModel<Description>
-    }
-
-    type DescriptionComponentMessage =
-        | LogError of exn
-        | SetDescription of DynamicModel<Description>
-        | LoadDescriptionData of Chat
+module ChatComponent =
+    [<AutoOpen>]
+    module DescriptionComponent = 
+        open System
+        open FunCombot.Client.Remoting.Chat
+    
+        type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">
+    
+        type Description = 
+            { Description: string
+              TotalUsers: int32
+              ActiveUsers: int32
+              ChangeInTotalUsersForWeek: int32 }
+            static member FromServiceData(data: ChatData) = 
+                { Description = data.Description
+                  TotalUsers = data.TotalUsers
+                  ActiveUsers = data.ActiveInThreeDays
+                  ChangeInTotalUsersForWeek = data.ChangeInTotalUsersForWeek }
+    
+        type DescriptionModel = {
+            Data: DynamicModel<Description>
+        }
+    
+        type DescriptionComponentMessage =
+            | LogError of exn
+            | SetDescription of DynamicModel<Description>
+            | LoadDescriptionData of Chat
+            
+        let update (provider: IRemoteServiceProvider) message model =
+            let chatDataService = provider.GetService<ChatDataService>()
+            match message with
+            | LogError exn ->
+                 eprintfn "%O" exn
+                 model, []
+            | SetDescription description ->
+                 { model with Data = description }, []
+            | LoadDescriptionData chat ->
+                let getChatDataCached =
+                    ClientSideCache.getOrCreateAsyncFn chatDataService.GetChatData (TimeSpan.FromMinutes(5.))
+                model,
+                Cmd.batch [
+                    SetDescription(NotLoaded) |> Cmd.ofMsg;
+                    Cmd.ofAsync 
+                        getChatDataCached chat
+                        (fun data ->
+                            Description.FromServiceData(data)
+                            |> (Model >> SetDescription)) 
+                        (fun exn -> LogError exn)
+                ]
+    
+        type DescriptionComponent() =       
+            inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()
+            
+            let template = DescriptionTemplate()
+    
+            override this.View model dispatch =
+                match model.Data with
+                | NotLoaded ->
+                    template
+                        .Description(CommonNodes.loadingDiv)
+                        .ActiveUsers(CommonNodes.loadingIcon)
+                        .TotalUsers(CommonNodes.loadingIcon)
+                        .Change(CommonNodes.loadingIcon)
+                        .Elt()
+                | Model description ->
+                    template
+                        .Description(pre [] [text description.Description])
+                        .ActiveUsers(span [] [text <| string description.ActiveUsers])
+                        .TotalUsers(span [] [text <| string description.TotalUsers])
+                        .Change(span [] [text <| string description.ChangeInTotalUsersForWeek])
+                        .Elt()
+                        
+    [<AutoOpen>]
+    module OverviewComponent = 
+        open DescriptionComponent
+        open FunCombot.Client.Components.Charting
+        open FunCombot.Client.Components.Charting.SeriesChartComponent
+        open FunCombot.Client.Components.Charting.UserDataComponent
         
-    let update (provider: IRemoteServiceProvider) message model =
-        let chatDataService = provider.GetService<ChatDataService>()
-        match message with
-        | LogError exn ->
-             eprintfn "%O" exn
-             model, []
-        | SetDescription description ->
-             { model with Data = description }, []
-        | LoadDescriptionData chat ->
-            let getChatDataCached =
-                ClientSideCache.getOrCreateAsyncFn chatDataService.GetChatData (TimeSpan.FromMinutes(5.))
-            model,
-            Cmd.batch [
-                SetDescription(NotLoaded) |> Cmd.ofMsg;
-                Cmd.ofAsync 
-                    getChatDataCached chat
-                    (fun data ->
-                        Description.FromServiceData(data)
-                        |> (Model >> SetDescription)) 
-                    (fun exn -> LogError exn)
-            ]
-
-    type DescriptionComponent() =       
-        inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()
+        type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
+    
+        type OverviewComponentModel = {
+            UserData: SeriesChartComponentModelContainer<UserDataComponentModel>
+            Description: DescriptionModel
+        }
         
-        let template = DescriptionTemplate()
-
-        override this.View model dispatch =
-            match model.Data with
-            | NotLoaded ->
-                template
-                    .Description(CommonNodes.loadingDiv)
-                    .ActiveUsers(CommonNodes.loadingIcon)
-                    .TotalUsers(CommonNodes.loadingIcon)
-                    .Change(CommonNodes.loadingIcon)
+        type OverviewComponentMessage =
+            | ChartComponentMessage of UserDataComponentMessage
+            | DescriptionComponentMessage of DescriptionComponentMessage
+            | LoadOverviewData of Chat
+        
+        let update (provider: IRemoteServiceProvider) message model =
+            match message with
+            | ChartComponentMessage message ->
+                let (newModel, commands) = UserDataComponent.update provider message model.UserData
+                { model with UserData = newModel }, convertSubs ChartComponentMessage commands
+            | DescriptionComponentMessage message ->
+                let (newModel, commands) = DescriptionComponent.update provider message model.Description
+                { model with Description = newModel }, convertSubs DescriptionComponentMessage commands           
+            | LoadOverviewData chat->
+                model, Cmd.batch [
+                    ChartComponentMessage(LoadChartDataFromService) |> Cmd.ofMsg
+                    DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
+                ]
+            
+        type OverviewComponent() =       
+            inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
+            
+            let chatOverviewTemplate = ChatOverviewTemplate()
+            
+            override this.View model dispatch =
+                chatOverviewTemplate
+                    .Description(
+                        ecomp<DescriptionComponent,_,_> model.Description ^fun message -> 
+                            dispatch (DescriptionComponentMessage message) 
+                    )
+                    .UsersCountGraph(
+                        ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
+                            dispatch (ChartComponentMessage(SeriesChartComponentMessage message))                   
+                    )
                     .Elt()
-            | Model description ->
-                template
-                    .Description(pre [] [text description.Description])
-                    .ActiveUsers(span [] [text <| string description.ActiveUsers])
-                    .TotalUsers(span [] [text <| string description.TotalUsers])
-                    .Change(span [] [text <| string description.ChangeInTotalUsersForWeek])
-                    .Elt()
-
-module OverviewComponent = 
-    open DescriptionComponent
-    open FunCombot.Client.Components.Charting
-    open FunCombot.Client.Components.Charting.SeriesChartComponent
-    open FunCombot.Client.Components.Charting.UserDataComponent
-    
-    type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
-
-    type OverviewComponentModel = {
-        UserData: SeriesChartComponentModelContainer<UserDataComponentModel>
-        Description: DescriptionModel
-    }
-    
-    type OverviewComponentMessage =
-        | ChartComponentMessage of UserDataComponentMessage
-        | DescriptionComponentMessage of DescriptionComponentMessage
-        | LoadOverviewData of Chat
-    
-    let update (provider: IRemoteServiceProvider) message model =
-        match message with
-        | ChartComponentMessage message ->
-            let (newModel, commands) = UserDataComponent.update provider message model.UserData
-            { model with UserData = newModel }, convertSubs ChartComponentMessage commands
-        | DescriptionComponentMessage message ->
-            let (newModel, commands) = DescriptionComponent.update provider message model.Description
-            { model with Description = newModel }, convertSubs DescriptionComponentMessage commands           
-        | LoadOverviewData chat->
-            model, Cmd.batch [
-                ChartComponentMessage(LoadChartDataFromService) |> Cmd.ofMsg
-                DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
-            ]
-        
-    type OverviewComponent() =       
-        inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
-        
-        let chatOverviewTemplate = ChatOverviewTemplate()
-        
-        override this.View model dispatch =
-            chatOverviewTemplate
-                .Description(
-                    ecomp<DescriptionComponent,_,_> model.Description ^fun message -> 
-                        dispatch (DescriptionComponentMessage message) 
-                )
-                .UsersCountGraph(
-                    ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
-                        dispatch (ChartComponentMessage(SeriesChartComponentMessage message))                   
-                )
-                .Elt()
-
-module ChatComponent =   
-    open OverviewComponent
 
     type MainTemplate = Template<"""frontend/templates/main.html""">
     
