@@ -9,10 +9,12 @@ module Cmd =
     let convertSubs (f: 'T -> 'TTo) (commands: Sub<'T> list) =
         commands
         |> List.map (fun cmd -> cmd |> Cmd.ofSub |> Cmd.map f)
+        |> Cmd.batch
     
     let convertCmds (f: 'T -> 'TTo) (commands: Cmd<'T> list) =
         commands
         |> List.map (fun cmd -> cmd |> Cmd.map f)       
+        |> Cmd.batch
         
 [<AutoOpen>]
 module Common =

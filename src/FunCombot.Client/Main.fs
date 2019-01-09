@@ -96,7 +96,8 @@ module SeriesChartComponent =
                    (fun e -> LogError e)
            { model with IsLoaded = false }, command
        | Message tMessage ->
-           messageUpdateFn tMessage model, []
+           let (newModel, commands) = messageUpdateFn tMessage model
+           newModel, commands
     
    type SeriesChartComponent<'TMessage>(id: string, elementId: string) =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
@@ -166,6 +167,7 @@ module SeriesChartComponent =
             Charting.destroyChart id
         
 module UserDataComponent =
+    open FunCombot.Client.Remoting.Chat
     open SeriesChartComponent
     
     let getDefaultModel id = 
@@ -182,9 +184,34 @@ module UserDataComponent =
           ToDateMax = stringToDate "2030-01-01" 
           ToDateValue = dateTo
           Unit = Week }
-
+    
+    type UserDataComponentMessage =
+        | LoadChartDataFromService of Chat
+    
+    let update (provider: IRemoteServiceProvider) message model =       
+        let chatDataService = provider.GetService<ChatDataService>()
+        match message with
+        | LoadChartDataFromService chat ->
+            model,
+            Cmd.batch [
+                Cmd.ofMsg UnloadData
+                Cmd.ofAsync 
+                    chatDataService.GetUserCount {
+                        Chat = chat 
+                        From = model.FromDateValue
+                        To = model.ToDateValue
+                        Unit = model.Unit
+                    }
+                    (fun data ->
+                        data
+                        |> List.map ^ fun item -> item.Date, item.Count
+                        |> LoadData)
+                    (fun exn -> LogError exn)
+            ]
+            
+    
     type UserDataComponent() =
-        inherit SeriesChartComponent<unit>(Identificators.usersChartId, "user_data")
+        inherit SeriesChartComponent<UserDataComponentMessage>(Identificators.usersChartId, "user_data")
          
 
 module HeaderComponent =   
@@ -249,12 +276,29 @@ module ChatComponent =
             }
 
             type DescriptionComponentMessage =
+                | LogError of exn
                 | SetDescription of DynamicModel<Description>
-            
-            let update message model =        
+                | LoadDescriptionData of Chat
+                
+            let update (provider: IRemoteServiceProvider) message model =
+                let chatDataService = provider.GetService<ChatDataService>()
                 match message with
+                | LogError exn ->
+                     eprintfn "%O" exn
+                     model, []
                 | SetDescription description ->
-                     { model with Data = description }
+                     { model with Data = description }, []
+                | LoadDescriptionData chat ->
+                    model,
+                    Cmd.batch [
+                        SetDescription(NotLoaded) |> Cmd.ofMsg;
+                        Cmd.ofAsync 
+                            chatDataService.GetChatData (chat)
+                            (fun data ->
+                                Description.FromServiceData(data)
+                                |> (Model >> SetDescription)) 
+                            (fun exn -> LogError exn)
+                    ]
 
             type DescriptionComponent() =       
                 inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()
@@ -286,17 +330,24 @@ module ChatComponent =
         }
         
         type OverviewComponentMessage =
-            | ChartComponentMessage of SeriesChartComponentMessage<unit>
+            | ChartComponentMessage of SeriesChartComponentMessage<UserDataComponentMessage>
             | DescriptionComponentMessage of DescriptionComponentMessage
+            | LoadOverviewData of Chat
         
-        let update message model =
-            let messageUpdate message model = model            
+        let update (provider: IRemoteServiceProvider) message model =
+            let messageUpdate message model = UserDataComponent.update provider message model            
             match message with
             | ChartComponentMessage message ->
                 let (newModel, commands) = SeriesChartComponent.update messageUpdate message model.UserData
                 { model with UserData = newModel }, convertSubs (fun c -> ChartComponentMessage(c)) commands
             | DescriptionComponentMessage message ->
-                { model with Description = DescriptionComponent.update message model.Description }, []               
+                let (newModel, commands) = DescriptionComponent.update provider message model.Description
+                { model with Description = newModel }, convertSubs (fun c -> DescriptionComponentMessage(c)) commands           
+            | LoadOverviewData chat ->
+                model, Cmd.batch [
+                    ChartComponentMessage(Message(LoadChartDataFromService chat)) |> Cmd.ofMsg
+                    DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
+                ]
             
         type OverviewComponent() =       
             inherit ElmishComponent<OverviewComponentModel, OverviewComponentMessage>()
@@ -340,13 +391,13 @@ module ChatComponent =
         Overview: OverviewComponentModel
     }
     
-    let update message model =
+    let update (provider: IRemoteServiceProvider) message model =
         match message with
         | ChangeSection name ->
             { model with CurrentSection = name }, []
         | OverviewComponentMessage message ->
-            let (newModel, commands) = OverviewComponent.update message model.Overview
-            { model with Overview = newModel }, Cmd.convertCmds (fun c -> OverviewComponentMessage(c)) commands      
+            let (newModel, commands) = OverviewComponent.update provider message model.Overview
+            { model with Overview = newModel }, Cmd.convertSubs (fun c -> OverviewComponentMessage(c)) commands      
     
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
@@ -381,7 +432,6 @@ module ChatComponent =
 module MainComponent = 
     open HeaderComponent
     open ChatComponent
-    open SeriesChartComponent
     open FunCombot.Client.Remoting.Chat
     
     type RootTemplate = Template<"frontend/templates/root.html">
@@ -405,42 +455,10 @@ module MainComponent =
     let router: Router<ApplicationPage, MainComponentModel, MainComponentMessage> =
         Router.infer SetPage (fun m -> m.Page)
         
-    let chartComponentMessage message = 
-        ChatComponentMessage(OverviewComponentMessage(ChartComponentMessage(message)))
+    let overviewMessage message = 
+        ChatComponentMessage(OverviewComponentMessage(message))
         
-    let descriptionComponentMessage message = 
-        ChatComponentMessage(OverviewComponentMessage(DescriptionComponentMessage(message)))
-        
-    let update (remoteServiceProvider: IRemoteServiceProvider) =
-        let chatDataService = remoteServiceProvider.GetService<ChatDataService>()
-        let overviewInitCommand chat =
-            Cmd.batch [
-                SetDescription(NotLoaded) |> descriptionComponentMessage |> Cmd.ofMsg;
-                Cmd.ofAsync 
-                    chatDataService.GetChatData (chat)
-                    (fun data ->
-                        Description.FromServiceData(data)
-                        |> (Model >> SetDescription)
-                        |> descriptionComponentMessage) 
-                    (fun exn -> LogError exn)
-            ]
-        let overviewChartLoadCommand chat (model: SeriesChartComponentModel) = 
-            Cmd.batch [
-                chartComponentMessage UnloadData |> Cmd.ofMsg;
-                Cmd.ofAsync 
-                    chatDataService.GetUserCount {
-                        Chat = chat 
-                        From = model.FromDateValue
-                        To = model.ToDateValue
-                        Unit = model.Unit
-                    }
-                    (fun data ->
-                        data |> List.map ^ fun item -> item.Date, item.Count
-                        |> LoadData
-                        |> chartComponentMessage)
-                    (fun exn -> LogError exn) 
-             ]
-        
+    let update (provider: IRemoteServiceProvider) =
         fun message (model: MainComponentModel) ->
             match message with
             | DoNothing ->
@@ -452,22 +470,31 @@ module MainComponent =
                 let command =
                     match model.Chat.CurrentSection with
                     | Overview ->
-                        Cmd.batch [
-                            overviewChartLoadCommand model.Header.CurrentChat model.Chat.Overview.UserData 
-                            overviewInitCommand model.Header.CurrentChat
-                        ]
+                        Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
                     | _ -> []
                 model, command
             | SetPage page ->
                 { model with Page = page }, []
             | ChatComponentMessage message ->
-                let command =
+                let sectionChangeCommand =
                    match message with
                     | ChangeSection section ->
-                        Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                        match section with
+                        | Overview ->
+                            Cmd.batch [
+                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
+                                Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
+                            ]
+                        | _ -> 
+                            Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
                     | _ -> []
-                let (newModel, commands) = ChatComponent.update message model.Chat
-                { model with Chat = newModel }, Cmd.convertCmds (fun c -> ChatComponentMessage(c)) commands |> Cmd.batch
+                let (newModel, commands) = ChatComponent.update provider message model.Chat
+                let command =
+                    Cmd.batch [
+                        sectionChangeCommand
+                        Cmd.convertSubs (fun c -> ChatComponentMessage(c)) commands
+                    ]
+                { model with Chat = newModel }, command
             | HeaderComponentMessage message ->
                 let command =
                    match message with
@@ -475,10 +502,7 @@ module MainComponent =
                         let loadCommand = 
                             match model.Chat.CurrentSection with
                             | Overview ->
-                                Cmd.batch [
-                                    overviewChartLoadCommand chat model.Chat.Overview.UserData 
-                                    overviewInitCommand chat
-                                ]
+                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.CurrentChat)
                             | _ -> []
                         Cmd.batch [
                             loadCommand
