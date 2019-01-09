@@ -42,7 +42,7 @@ module SeriesChartComponent =
          ToDateValue: DateTime
          Unit: GraphUnit }
      
-   type SeriesChartComponentMessage<'TMessage> =
+   type SeriesChartComponentMessage =
        | DoNothing
        | LogError of exn
        | SetDateFrom of DateTime
@@ -50,7 +50,6 @@ module SeriesChartComponent =
        | SetUnit of GraphUnit
        | UnloadData
        | LoadData of TimeseriesData
-       | Message of 'TMessage
    
    let unloadData id = 
         Charting.unloadData id ["x";"users"]
@@ -65,7 +64,7 @@ module SeriesChartComponent =
             { name = "users"; data = values };
         ];
 
-   let update messageUpdateFn message (model: SeriesChartComponentModel) =
+   let update message (model: SeriesChartComponentModel) =
        match message with
        | DoNothing ->
            model, []
@@ -95,12 +94,9 @@ module SeriesChartComponent =
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
            { model with IsLoaded = false }, command
-       | Message tMessage ->
-           let (newModel, commands) = messageUpdateFn tMessage model
-           newModel, commands
     
    type SeriesChartComponent<'TMessage>(id: string, elementId: string) =
-        inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage<'TMessage>>()
+        inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage>()
         
         let configuration = {
             x = "x"
@@ -185,16 +181,21 @@ module UserDataComponent =
           ToDateValue = dateTo
           Unit = Week }
     
-    type UserDataComponentMessage =
-        | LoadChartDataFromService of Chat
+    type UserDataComponentMessage = 
+        | LogError of exn
+        | LoadChartDataFromService of Chat        
+        | SeriesChartComponentMessage of SeriesChartComponentMessage
     
-    let update (provider: IRemoteServiceProvider) message model =       
+    let update (provider: IRemoteServiceProvider) messageUpdateFn message model =       
         let chatDataService = provider.GetService<ChatDataService>()
         match message with
+        | LogError exn ->
+            eprintfn "%O" exn
+            model, []
         | LoadChartDataFromService chat ->
             model,
             Cmd.batch [
-                Cmd.ofMsg UnloadData
+                Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                 Cmd.ofAsync 
                     chatDataService.GetUserCount {
                         Chat = chat 
@@ -205,10 +206,12 @@ module UserDataComponent =
                     (fun data ->
                         data
                         |> List.map ^ fun item -> item.Date, item.Count
-                        |> LoadData)
+                        |> (LoadData >> SeriesChartComponentMessage))
                     (fun exn -> LogError exn)
             ]
-            
+        | SeriesChartComponentMessage seriesMessage ->
+           let (newModel, commands) = messageUpdateFn seriesMessage model
+           newModel, Cmd.convertSubs (fun c -> SeriesChartComponentMessage c) commands   
     
     type UserDataComponent() =
         inherit SeriesChartComponent<UserDataComponentMessage>(Identificators.usersChartId, "user_data")
@@ -239,7 +242,7 @@ module HeaderComponent =
                 forEach getUnionCases<Chat> ^fun (case, name, _) ->
                     a [ attr.classes [yield "item"; if model.CurrentChat = case then yield "active selected"];
                         on.click ^fun ev ->
-                            if model.CurrentChat <> case then dispatch (ChangeChat(case))] [
+                            if model.CurrentChat <> case then dispatch (ChangeChat case)] [
                         text case.DisplayName
                     ]
             headerTemplate
@@ -330,22 +333,22 @@ module ChatComponent =
         }
         
         type OverviewComponentMessage =
-            | ChartComponentMessage of SeriesChartComponentMessage<UserDataComponentMessage>
+            | ChartComponentMessage of UserDataComponentMessage
             | DescriptionComponentMessage of DescriptionComponentMessage
             | LoadOverviewData of Chat
         
         let update (provider: IRemoteServiceProvider) message model =
-            let messageUpdate message model = UserDataComponent.update provider message model            
+            let messageUpdate message model = SeriesChartComponent.update message model        
             match message with
             | ChartComponentMessage message ->
-                let (newModel, commands) = SeriesChartComponent.update messageUpdate message model.UserData
-                { model with UserData = newModel }, convertSubs (fun c -> ChartComponentMessage(c)) commands
+                let (newModel, commands) = UserDataComponent.update provider messageUpdate message model.UserData
+                { model with UserData = newModel }, convertSubs (fun c -> ChartComponentMessage c) commands
             | DescriptionComponentMessage message ->
                 let (newModel, commands) = DescriptionComponent.update provider message model.Description
-                { model with Description = newModel }, convertSubs (fun c -> DescriptionComponentMessage(c)) commands           
+                { model with Description = newModel }, convertSubs (fun c -> DescriptionComponentMessage c) commands           
             | LoadOverviewData chat ->
                 model, Cmd.batch [
-                    ChartComponentMessage(Message(LoadChartDataFromService chat)) |> Cmd.ofMsg
+                    ChartComponentMessage(LoadChartDataFromService chat) |> Cmd.ofMsg
                     DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
                 ]
             
@@ -358,11 +361,11 @@ module ChatComponent =
                 chatOverviewTemplate
                     .Description(
                         ecomp<DescriptionComponent,_,_> model.Description ^fun message -> 
-                            dispatch (DescriptionComponentMessage(message)) 
+                            dispatch (DescriptionComponentMessage message) 
                     )
                     .UsersCountGraph(
                         ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
-                            dispatch (ChartComponentMessage(message))                   
+                            dispatch (ChartComponentMessage(SeriesChartComponentMessage message))                   
                     )
                     .Elt()
     
