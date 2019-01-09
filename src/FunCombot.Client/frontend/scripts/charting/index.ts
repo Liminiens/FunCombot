@@ -73,11 +73,5 @@ export function unloadData(guid: guid, columnNames: Array<string>): void {
 }
 
 export function destroyChart(guid: guid): void {
-    const chart = chartCache.get(guid);
-    if (chart !== undefined) {
-        chart.destroy();
-        chartCache.delete(guid);
-    } else {
-        console.error(`Attempt to destroy a chart that doesn't exist in a cache: ${guid}`);
-    }
+    chartCache.delete(guid);
 }
