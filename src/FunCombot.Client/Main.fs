@@ -233,8 +233,17 @@ module UserDataComponent =
                     (fun exn -> LogError exn)
             ]
         | SeriesChartComponentMessage seriesMessage ->
+           let loadCommand =
+               match seriesMessage with
+               | SetDateFrom fromDate -> Cmd.ofMsg LoadChartDataFromService               
+               | SetDateTo date -> Cmd.ofMsg LoadChartDataFromService
+               | SetUnit unitValue -> Cmd.ofMsg LoadChartDataFromService
+               | _ -> []
            let (newModel, commands) = SeriesChartComponent.update seriesMessage model
-           newModel, Cmd.convertSubs SeriesChartComponentMessage commands   
+           newModel, Cmd.batch [
+               loadCommand
+               Cmd.convertSubs SeriesChartComponentMessage commands
+           ]   
     
     type UserDataComponent() =
         inherit SeriesChartComponent<UserDataComponentModel>(Identificators.usersChartId, "user_data")
@@ -504,7 +513,7 @@ module MainComponent =
             | ChatComponentMessage message ->
                 let sectionChangeCommand =
                    match message with
-                    | ChangeSection section ->
+                   | ChangeSection section ->
                         match section with
                         | Overview ->
                             Cmd.batch [
@@ -513,7 +522,7 @@ module MainComponent =
                             ]
                         | _ -> 
                             Cmd.ofMsg (SetPage(Chat(model.Header.CurrentChat.UrlName, section.UrlName)))
-                    | _ -> []
+                   | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
                 let command =
                     Cmd.batch [
