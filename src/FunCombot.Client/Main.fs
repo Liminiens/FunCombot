@@ -211,7 +211,7 @@ module UserDataComponent =
             ]
         | SeriesChartComponentMessage seriesMessage ->
            let (newModel, commands) = messageUpdateFn seriesMessage model
-           newModel, Cmd.convertSubs (fun c -> SeriesChartComponentMessage c) commands   
+           newModel, Cmd.convertSubs SeriesChartComponentMessage commands   
     
     type UserDataComponent() =
         inherit SeriesChartComponent<UserDataComponentMessage>(Identificators.usersChartId, "user_data")
@@ -342,10 +342,10 @@ module ChatComponent =
             match message with
             | ChartComponentMessage message ->
                 let (newModel, commands) = UserDataComponent.update provider messageUpdate message model.UserData
-                { model with UserData = newModel }, convertSubs (fun c -> ChartComponentMessage c) commands
+                { model with UserData = newModel }, convertSubs ChartComponentMessage commands
             | DescriptionComponentMessage message ->
                 let (newModel, commands) = DescriptionComponent.update provider message model.Description
-                { model with Description = newModel }, convertSubs (fun c -> DescriptionComponentMessage c) commands           
+                { model with Description = newModel }, convertSubs DescriptionComponentMessage commands           
             | LoadOverviewData chat ->
                 model, Cmd.batch [
                     ChartComponentMessage(LoadChartDataFromService chat) |> Cmd.ofMsg
@@ -400,7 +400,7 @@ module ChatComponent =
             { model with CurrentSection = name }, []
         | OverviewComponentMessage message ->
             let (newModel, commands) = OverviewComponent.update provider message model.Overview
-            { model with Overview = newModel }, Cmd.convertSubs (fun c -> OverviewComponentMessage(c)) commands      
+            { model with Overview = newModel }, Cmd.convertSubs OverviewComponentMessage commands      
     
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
@@ -495,7 +495,7 @@ module MainComponent =
                 let command =
                     Cmd.batch [
                         sectionChangeCommand
-                        Cmd.convertSubs (fun c -> ChatComponentMessage(c)) commands
+                        Cmd.convertSubs ChatComponentMessage commands
                     ]
                 { model with Chat = newModel }, command
             | HeaderComponentMessage message ->
@@ -517,12 +517,12 @@ module MainComponent =
         let header =
             ecomp<HeaderComponent,_,_> {
                 CurrentChat = model.Header.CurrentChat
-            } ^fun message -> dispatch (HeaderComponentMessage(message))
+            } ^fun message -> dispatch (HeaderComponentMessage message)
         let chatInfo =
             ecomp<ChatComponent,_,_> {
                 CurrentSection = model.Chat.CurrentSection
                 Overview = model.Chat.Overview
-            } ^fun message -> dispatch (ChatComponentMessage(message))
+            } ^fun message -> dispatch (ChatComponentMessage message)
             
         rootTemplate
             .Header(header)
