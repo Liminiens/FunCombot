@@ -1,4 +1,4 @@
-namespace FunCombot.Client.Components
+namespace StatsBot.Client.Components
 
 open Bolero.Html
 open Bolero.Remoting

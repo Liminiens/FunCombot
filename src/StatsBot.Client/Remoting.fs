@@ -1,10 +1,10 @@
-namespace FunCombot.Client.Remoting
+namespace StatsBot.Client.Remoting
 
 open Bolero.Remoting
     
 module Chat =
     open System
-    open FunCombot.Client.Types
+    open StatsBot.Client.Types
 
     type ChatData = {
         Description: string

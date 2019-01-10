@@ -1,4 +1,4 @@
-namespace FunCombot.Server
+namespace StatsBot.Server
 
 open System
 open Serilog

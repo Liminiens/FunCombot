@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "FunCombot.Server": {
+    "StatsBot.Server": {
       "commandName": "Project",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"

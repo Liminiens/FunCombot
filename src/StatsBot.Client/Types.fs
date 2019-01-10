@@ -1,4 +1,4 @@
-﻿namespace FunCombot.Client.Types
+﻿namespace StatsBot.Client.Types
 
 open Bolero
 

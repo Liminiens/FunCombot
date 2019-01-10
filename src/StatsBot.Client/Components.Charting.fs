@@ -1,13 +1,13 @@
-namespace FunCombot.Client.Components.Charting
+namespace StatsBot.Client.Components.Charting
 
 open System
 open Elmish
 open Bolero
 open Bolero.Html
-open FunCombot.Client
-open FunCombot.Client.Types
-open FunCombot.Client.Javascript
-open FunCombot.Client.Javascript.Charting 
+open StatsBot.Client
+open StatsBot.Client.Types
+open StatsBot.Client.Javascript
+open StatsBot.Client.Javascript.Charting 
 
 [<RequireQualifiedAccess>]
 module Identificators =
@@ -189,8 +189,8 @@ module SeriesChartComponent =
             Charting.destroyChart id
         
 module UserDataComponent =
-    open FunCombot.Client.Components
-    open FunCombot.Client.Remoting.Chat
+    open StatsBot.Client.Components
+    open StatsBot.Client.Remoting.Chat
     open SeriesChartComponent
     
     type UserDataComponentModel = { Chat: Chat }

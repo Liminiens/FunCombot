@@ -1,11 +1,11 @@
-namespace FunCombot.Server
+namespace StatsBot.Server
 
 open Microsoft.AspNetCore.Builder
 open Microsoft.AspNetCore.Hosting
 open Microsoft.Extensions.DependencyInjection
 open Bolero.Remoting
-open FunCombot
 open Microsoft.AspNetCore.Mvc
+open StatsBot
 open Services.Chat
 
 type Startup() =

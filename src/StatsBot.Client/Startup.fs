@@ -1,4 +1,4 @@
-namespace FunCombot.Client
+namespace StatsBot.Client
 
 open Microsoft.AspNetCore.Blazor.Builder
 open Microsoft.AspNetCore.Blazor.Hosting

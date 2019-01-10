@@ -1,9 +1,9 @@
-namespace FunCombot.Client.Components.Header
+namespace StatsBot.Client.Components.Header
 
 open Bolero
 open Bolero.Html
-open FunCombot.Client
-open FunCombot.Client.Types
+open StatsBot.Client
+open StatsBot.Client.Types
 
 module HeaderComponent =   
     type HeaderTemplate = Template<"""frontend/templates/header.html""">

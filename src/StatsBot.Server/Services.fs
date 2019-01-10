@@ -1,10 +1,10 @@
-namespace FunCombot.Server.Services
+namespace StatsBot.Server.Services
 
 module Chat =
     open System
     open Microsoft.Extensions.Logging
     open Bolero.Remoting
-    open FunCombot.Client.Remoting.Chat
+    open StatsBot.Client.Remoting.Chat
 
     type ChatDataServiceHandler(logger: ILogger<ChatDataServiceHandler>) =
         inherit RemoteHandler<ChatDataService>()

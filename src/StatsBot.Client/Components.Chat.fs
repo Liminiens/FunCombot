@@ -1,11 +1,11 @@
-namespace FunCombot.Client.Components.Chat
+namespace StatsBot.Client.Components.Chat
 
 open Elmish
 open Bolero
 open Bolero.Html
-open FunCombot.Client
-open FunCombot.Client.Types
-open FunCombot.Client.Components
+open StatsBot.Client
+open StatsBot.Client.Types
+open StatsBot.Client.Components
 
 module UsersComponent =
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
@@ -21,7 +21,7 @@ module ChatComponent =
     [<AutoOpen>]
     module DescriptionComponent = 
         open System
-        open FunCombot.Client.Remoting.Chat
+        open StatsBot.Client.Remoting.Chat
     
         type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">
     
@@ -94,9 +94,9 @@ module ChatComponent =
     [<AutoOpen>]
     module OverviewComponent = 
         open DescriptionComponent
-        open FunCombot.Client.Components.Charting
-        open FunCombot.Client.Components.Charting.SeriesChartComponent
-        open FunCombot.Client.Components.Charting.UserDataComponent
+        open StatsBot.Client.Components.Charting
+        open StatsBot.Client.Components.Charting.SeriesChartComponent
+        open StatsBot.Client.Components.Charting.UserDataComponent
         
         type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
     

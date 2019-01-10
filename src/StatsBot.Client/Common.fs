@@ -1,4 +1,4 @@
-namespace FunCombot.Client
+namespace StatsBot.Client
 
 open System
 open Microsoft.FSharp.Reflection

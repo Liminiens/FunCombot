@@ -1,4 +1,4 @@
-namespace FunCombot.Client.Javascript
+namespace StatsBot.Client.Javascript
 
 open System
 open Microsoft.JSInterop

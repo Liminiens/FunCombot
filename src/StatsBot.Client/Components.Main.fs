@@ -1,22 +1,22 @@
-module FunCombot.Client.Components.Main
+module StatsBot.Client.Components.Main
 
 open Elmish
 open Bolero
 open System
 open Bolero.Html
-open FunCombot.Client
-open FunCombot.Client.Types
-open FunCombot.Client.Javascript
-open FunCombot.Client.Components
-open FunCombot.Client.Components.Charting.UserDataComponent
-open FunCombot.Client.Components.Header
-open FunCombot.Client.Components.Header.HeaderComponent
-open FunCombot.Client.Components.Chat
-open FunCombot.Client.Components.Chat.ChatComponent
+open StatsBot.Client
+open StatsBot.Client.Types
+open StatsBot.Client.Javascript
+open StatsBot.Client.Components
+open StatsBot.Client.Components.Charting.UserDataComponent
+open StatsBot.Client.Components.Header
+open StatsBot.Client.Components.Header.HeaderComponent
+open StatsBot.Client.Components.Chat
+open StatsBot.Client.Components.Chat.ChatComponent
 open Bolero.Remoting
             
 module MainComponent = 
-    open FunCombot.Client.Components.Charting
+    open StatsBot.Client.Components.Charting
     
     type RootTemplate = Template<"frontend/templates/root.html">
       
