@@ -10,14 +10,29 @@ open StatsBot.Client.Components
 module UsersComponent =
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
     
+    type UsersComponentMessage =
+        | SetUsersInfoChat of Chat
+    
+    type UsersComponentModel = {
+        Chat: Chat
+    }
+    
+    let update (provider: IRemoteServiceProvider) message model =
+        match message with
+        | SetUsersInfoChat chat ->
+            { model with Chat = chat }, []
+    
     type UsersComponent() =
-        inherit ElmishComponent<unit, unit>()
+        inherit ElmishComponent<UsersComponentModel, UsersComponentMessage>()
         
         let tableTemplate = TableTemplate()
         
-        override this.View model dispatch = div [] []
+        override this.View model dispatch =
+            tableTemplate.Elt()
 
 module ChatComponent =
+    open UsersComponent
+
     [<AutoOpen>]
     module DescriptionComponent = 
         open System
@@ -43,7 +58,7 @@ module ChatComponent =
         type DescriptionComponentMessage =
             | LogError of exn
             | SetDescription of DynamicModel<Description>
-            | LoadDescriptionData of Chat
+            | LoadDescriptionDataFromService of Chat
             
         let update (provider: IRemoteServiceProvider) =
             let chatDataService = provider.GetService<ChatDataService>()
@@ -57,7 +72,7 @@ module ChatComponent =
                      model, []
                 | SetDescription description ->
                      { model with Data = description }, []
-                | LoadDescriptionData chat ->
+                | LoadDescriptionDataFromService chat ->
                     model,
                     Cmd.batch [
                         SetDescription(NotLoaded) |> Cmd.ofMsg;
@@ -88,7 +103,9 @@ module ChatComponent =
                         .Description(pre [] [text description.Description])
                         .ActiveUsers(span [] [text <| string description.ActiveUsers])
                         .TotalUsers(span [] [text <| string description.TotalUsers])
-                        .Change(span [] [text <| string description.ChangeInTotalUsersForWeek])
+                        .Change(span ["class" => if description.ChangeInTotalUsersForWeek <= 0 then "count-change-minus" else "count-change-plus"] [
+                            text <| string description.ChangeInTotalUsersForWeek
+                        ])
                         .Elt()
                         
     [<AutoOpen>]
@@ -121,7 +138,7 @@ module ChatComponent =
             | LoadOverviewData chat->
                 model, Cmd.batch [
                     ChartComponentMessage(LoadChartDataFromService) |> Cmd.ofMsg
-                    DescriptionComponentMessage(LoadDescriptionData chat) |> Cmd.ofMsg
+                    DescriptionComponentMessage(LoadDescriptionDataFromService chat) |> Cmd.ofMsg
                 ]
             
         type OverviewComponent() =       
@@ -158,18 +175,23 @@ module ChatComponent =
             | _ -> None
         
     type ChatComponentMessage =
+        | UsersComponentMessage of UsersComponentMessage
         | OverviewComponentMessage of OverviewComponentMessage
         | ChangeSection of SectionName
         
     type ChatComponentModel = {
         CurrentSection: SectionName
         Overview: OverviewComponentModel
+        Users: UsersComponentModel
     }
     
     let update (provider: IRemoteServiceProvider) message model =
         match message with
         | ChangeSection name ->
             { model with CurrentSection = name }, []
+        | UsersComponentMessage message ->
+            let (newModel, commands) = UsersComponent.update provider message model.Users
+            { model with Users = newModel }, Cmd.convertSubs UsersComponentMessage commands
         | OverviewComponentMessage message ->
             let (newModel, commands) = OverviewComponent.update provider message model.Overview
             { model with Overview = newModel }, Cmd.convertSubs OverviewComponentMessage commands      
@@ -184,7 +206,7 @@ module ChatComponent =
                 forEach getUnionCases<SectionName> ^fun (case, name, _) ->
                     a [attr.classes [yield "item"; if model.CurrentSection = case then yield "active";]
                        on.click ^fun _ ->
-                           if model.CurrentSection <> case then dispatch (ChangeSection(case))] [
+                           if model.CurrentSection <> case then dispatch (ChangeSection case)] [
                         text name
                     ]       
             
@@ -193,11 +215,10 @@ module ChatComponent =
                     match section with
                     | Overview ->
                         ecomp<OverviewComponent,_,_> model.Overview ^fun message -> 
-                            dispatch (OverviewComponentMessage(message))
+                            dispatch (OverviewComponentMessage message)
                     | Users ->
-                        div [] [
-                            h1 ["class" => "ui header"] [text "Users"]
-                        ]
+                        ecomp<UsersComponent,_,_> model.Users ^fun message -> 
+                            dispatch (UsersComponentMessage message)
                         
             chatMainTemplate
                 .SectionMenu(menu)

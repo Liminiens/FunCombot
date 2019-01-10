@@ -29,7 +29,12 @@ module Chat =
                             let mutable startDate = data.From
                             while startDate < data.To do
                                 yield { Date = startDate; Count = random.Next(10, 1000) }
-                                startDate <- startDate.AddDays(1.)
+                                startDate <- 
+                                    match data.Unit with
+                                    | "week" -> startDate.AddDays(7.)
+                                    | "day" -> startDate.AddDays(1.)
+                                    | "month" -> startDate.AddMonths(1)
+                                    | _ -> startDate.AddDays(1.)
                         ]
                     return data
                 }

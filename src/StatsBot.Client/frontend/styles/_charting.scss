@@ -4,6 +4,14 @@
   padding-left: 0;
 }
 
+.count-change-plus {
+  color: green;
+}
+
+.count-change-minus {
+  color: red;
+}
+
 .chart {
   @include breakpoint(all) {
     height: 450px;

@@ -12,6 +12,7 @@ open StatsBot.Client.Components.Charting.UserDataComponent
 open StatsBot.Client.Components.Header
 open StatsBot.Client.Components.Header.HeaderComponent
 open StatsBot.Client.Components.Chat
+open StatsBot.Client.Components.Chat.UsersComponent
 open StatsBot.Client.Components.Chat.ChatComponent
 open Bolero.Remoting
             
@@ -37,6 +38,9 @@ module MainComponent =
     let rootTemplate = RootTemplate()
     
     let router = Router.infer SetPage (fun m -> m.Page)
+    
+    let usersMessage message = 
+        ChatComponentMessage(UsersComponentMessage(message))
         
     let overviewMessage message = 
         ChatComponentMessage(OverviewComponentMessage(message))
@@ -62,14 +66,16 @@ module MainComponent =
                 let sectionChangeCommand =
                    match message with
                    | ChangeSection section ->
-                        match section with
-                        | Overview ->
-                            Cmd.batch [
-                                Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
-                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
-                            ]
-                        | _ -> 
-                            Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
+                        Cmd.batch [
+                            yield Cmd.ofMsg <| SetPage(Chat(model.Header.Chat.UrlName, section.UrlName))
+                            yield
+                                match section with
+                                | Overview ->
+                                    Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
+                                | Users ->
+                                    []
+                                | _ -> []
+                        ]
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
                 let command =
@@ -86,9 +92,11 @@ module MainComponent =
                             match model.Chat.CurrentSection with
                             | Overview ->
                                 Cmd.batch [
-                                    Cmd.ofMsg <| overviewMessage (ChartComponentMessage(SetChat chat))
+                                    Cmd.ofMsg <| overviewMessage (ChartComponentMessage(SetUserChartChat chat))
                                     Cmd.ofMsg <| overviewMessage (LoadOverviewData chat)
                                 ]
+                            | Users ->
+                                Cmd.ofMsg <| usersMessage (SetUsersInfoChat chat)
                             | _ -> []
                         Cmd.batch [
                             Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
@@ -101,10 +109,8 @@ module MainComponent =
             ecomp<HeaderComponent,_,_> model.Header ^fun message ->
                 dispatch (HeaderComponentMessage message)
         let chatInfo =
-            ecomp<ChatComponent,_,_> {
-                CurrentSection = model.Chat.CurrentSection
-                Overview = model.Chat.Overview
-            } ^fun message -> dispatch (ChatComponentMessage message)
+            ecomp<ChatComponent,_,_> model.Chat ^fun message ->
+                dispatch (ChatComponentMessage message)
             
         rootTemplate
             .Header(header)
@@ -126,7 +132,7 @@ module MainComponent =
                 let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
                 page, chatName, sectionName
             | _ ->
-                (Chat(Fsharpchat.UrlName, Overview.UrlName)), Fsharpchat, Overview
+                Chat(Fsharpchat.UrlName, Overview.UrlName), Fsharpchat, Overview
 
         let createInitModel () =                             
             let (page, chatName, sectionName) = getRouteData()            
@@ -140,13 +146,16 @@ module MainComponent =
                     Overview = {
                         UserData = {
                             SeriesData = UserDataComponent.getDefaultModel Identificators.usersChartId
-                            Model = {
+                            ChartContainer = {
                                 Chat = chatName
                             }
                         }
                         Description = {
                             Data = NotLoaded
                         }
+                    }
+                    Users = {
+                        Chat = chatName
                     }
                 }
             }

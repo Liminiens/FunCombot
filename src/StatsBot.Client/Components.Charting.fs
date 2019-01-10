@@ -54,7 +54,7 @@ module SeriesChartComponent =
       
    type SeriesChartComponentModelContainer<'T> = {
        SeriesData: SeriesChartComponentModel
-       Model: 'T
+       ChartContainer: 'T
    }
      
    type SeriesChartComponentMessage =
@@ -164,7 +164,10 @@ module SeriesChartComponent =
             
             let units =
                 forEach getUnionCases<SeriesGraphUnit> ^fun (case, _, tag) ->
-                    option [attr.value tag] [text case.Name]
+                    option [yield attr.value case.Name;
+                            if model.SeriesData.Unit = case then yield attr.selected true] [
+                        text case.Name
+                    ]
             
             let fromInput =
                 createDateInput "From:" model.SeriesData.FromDateValue model.SeriesData.FromDateMin model.SeriesData.FromDateMax ^fun value -> 
@@ -174,8 +177,10 @@ module SeriesChartComponent =
                 createDateInput "To:" model.SeriesData.ToDateValue model.SeriesData.ToDateMin model.SeriesData.ToDateMax ^fun value -> 
                     dispatch (SetDateTo(stringToDate value))
             
-            let parseUnitOrDefault unit = 
-                Option.defaultValue Week <| SeriesGraphUnit.FromString unit
+            let parseUnitOrDefault unit =
+                unit
+                |> SeriesGraphUnit.FromString
+                |> Option.defaultValue Day
 
             template
                 .FromInput(fromInput)
@@ -212,7 +217,7 @@ module UserDataComponent =
     
     type UserDataComponentMessage = 
         | LogError of exn
-        | SetChat of Chat 
+        | SetUserChartChat of Chat 
         | LoadChartDataFromService       
         | SeriesChartComponentMessage of SeriesChartComponentMessage
     
@@ -226,17 +231,17 @@ module UserDataComponent =
             | LogError exn ->
                 eprintfn "%O" exn
                 model, []
-            | SetChat chat ->
-                { model with Model = {
-                            model.Model with Chat = chat
-                }}, []
+            | SetUserChartChat chat ->
+                { model with ChartContainer = {
+                            model.ChartContainer with Chat = chat
+                } }, []
             | LoadChartDataFromService ->
                 model,
                 Cmd.batch [
                     Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                     Cmd.ofAsync 
                         getUserCountCached {
-                            Chat = model.Model.Chat 
+                            Chat = model.ChartContainer.Chat 
                             From = model.SeriesData.FromDateValue
                             To = model.SeriesData.ToDateValue
                             Unit = model.SeriesData.Unit.Name
@@ -250,14 +255,15 @@ module UserDataComponent =
             | SeriesChartComponentMessage seriesMessage ->
                let loadCommand =
                    match seriesMessage with
-                   | SetDateFrom fromDate -> Cmd.ofMsg LoadChartDataFromService               
-                   | SetDateTo date -> Cmd.ofMsg LoadChartDataFromService
-                   | SetUnit unitValue -> Cmd.ofMsg LoadChartDataFromService
+                   | SetDateFrom _             
+                   | SetDateTo _
+                   | SetUnit _ -> 
+                        Cmd.ofMsg LoadChartDataFromService
                    | _ -> []
                let (newModel, commands) = SeriesChartComponent.update seriesMessage model
                newModel, Cmd.batch [
-                   loadCommand
                    Cmd.convertSubs SeriesChartComponentMessage commands
+                   loadCommand
                ]   
     
     type UserDataComponent() =

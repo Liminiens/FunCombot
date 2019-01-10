@@ -22,13 +22,19 @@ module Common =
 
     let inline isNotNull value = not <| isNull value
 
-    let inline isNullOrWhiteSpace (str: string) = String.IsNullOrWhiteSpace(str)
+    let inline isNullOrWhiteSpace str = String.IsNullOrWhiteSpace(str)
     
 [<AutoOpen>]    
 module Reflection =
     let getUnionCaseNames<'T> =
         FSharpType.GetUnionCases typeof<'T>
         |> Array.map ^fun case -> case.Name
+    
+    let createUnionCase<'T> tag =
+        FSharpType.GetUnionCases(typeof<'T>)
+        |> Array.tryFind ^fun case -> case.Tag = tag
+        |> Option.bind ^fun c -> Some (FSharpValue.MakeUnion(c, [| |]) :?> 'T)
+        
     
     let getUnionCaseName (case: 'T) = 
         match FSharpValue.GetUnionFields(case, typeof<'T>) with
@@ -37,3 +43,9 @@ module Reflection =
     let getUnionCases<'T> =
         FSharpType.GetUnionCases(typeof<'T>)
         |> Array.map ^fun case -> (FSharpValue.MakeUnion(case, [| |]) :?> 'T, case.Name, case.Tag)
+        
+[<AutoOpen>]
+module TryParse =
+    let tryParseWith tryParseFunc = tryParseFunc >> function
+        | true, v -> Some v
+        | false, _ -> None
