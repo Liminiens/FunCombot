@@ -15,11 +15,11 @@ module Chat =
     
     type UserCount = { Date: DateTime; Count: int }
     
-    type UserCountParameter = { Chat: Chat; From: DateTime; To: DateTime; Unit: GraphUnit }
+    type UserCountInfo = { Chat: Chat; From: DateTime; To: DateTime; Unit: string }
     
     type ChatDataService =        
         { GetChatData: Chat -> Async<ChatData>
-          GetUserCount: UserCountParameter -> Async<list<UserCount>> }
+          GetUserCount: UserCountInfo -> Async<list<UserCount>> }
 
         interface IRemoteService with
             member __.BasePath = "/chat-data"   

@@ -45,27 +45,29 @@ module ChatComponent =
             | SetDescription of DynamicModel<Description>
             | LoadDescriptionData of Chat
             
-        let update (provider: IRemoteServiceProvider) message model =
+        let update (provider: IRemoteServiceProvider) =
             let chatDataService = provider.GetService<ChatDataService>()
-            match message with
-            | LogError exn ->
-                 eprintfn "%O" exn
-                 model, []
-            | SetDescription description ->
-                 { model with Data = description }, []
-            | LoadDescriptionData chat ->
-                let getChatDataCached =
-                    ClientSideCache.getOrCreateAsyncFn chatDataService.GetChatData (TimeSpan.FromMinutes(5.))
-                model,
-                Cmd.batch [
-                    SetDescription(NotLoaded) |> Cmd.ofMsg;
-                    Cmd.ofAsync 
-                        getChatDataCached chat
-                        (fun data ->
-                            Description.FromServiceData(data)
-                            |> (Model >> SetDescription)) 
-                        (fun exn -> LogError exn)
-                ]
+            let getChatDataCached =
+                (chatDataService.GetChatData, (TimeSpan.FromMinutes(5.)))
+                ||> ClientSideCache.getOrCreateAsyncFn
+            fun message model ->
+                match message with
+                | LogError exn ->
+                     eprintfn "%O" exn
+                     model, []
+                | SetDescription description ->
+                     { model with Data = description }, []
+                | LoadDescriptionData chat ->
+                    model,
+                    Cmd.batch [
+                        SetDescription(NotLoaded) |> Cmd.ofMsg;
+                        Cmd.ofAsync 
+                            getChatDataCached chat
+                            (fun data ->
+                                Description.FromServiceData(data)
+                                |> (Model >> SetDescription)) 
+                            (fun exn -> LogError exn)
+                    ]
     
         type DescriptionComponent() =       
             inherit ElmishComponent<DescriptionModel, DescriptionComponentMessage>()

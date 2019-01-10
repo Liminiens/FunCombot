@@ -42,20 +42,3 @@ type Chat =
         | "fsharp-chat"  -> Some Fsharpchat
         | "ms-stack-jobs" -> Some MicrosoftStackJobs
         | _ -> None
-        
-type GraphUnit =
-   | Day
-   | Week
-   | Month
-   member this.Name =
-       match this with
-       | Day -> "day"
-       | Week -> "week"
-       | Month -> "month"
-       
-   static member FromString(str) =
-       match str with
-       | "day" -> Some Day
-       | "week" -> Some Week
-       | "month" -> Some Month
-       | _ -> None

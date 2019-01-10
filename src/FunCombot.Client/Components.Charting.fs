@@ -21,6 +21,23 @@ module SeriesChartComponent =
 
    let stringToDate (str: string) =
        DateTime.ParseExact(str, "yyyy-MM-dd", null)
+             
+   type SeriesGraphUnit =
+      | Day
+      | Week
+      | Month
+      member this.Name =
+          match this with
+          | Day -> "day"
+          | Week -> "week"
+          | Month -> "month"
+          
+      static member FromString(str) =
+           match str with
+           | "day" -> Some Day
+           | "week" -> Some Week
+           | "month" -> Some Month
+           | _ -> None
    
    type TimeseriesData = list<(DateTime * int)>
    
@@ -33,7 +50,7 @@ module SeriesChartComponent =
          ToDateMin: DateTime
          ToDateMax: DateTime
          ToDateValue: DateTime
-         Unit: GraphUnit }
+         Unit: SeriesGraphUnit }
       
    type SeriesChartComponentModelContainer<'T> = {
        SeriesData: SeriesChartComponentModel
@@ -45,7 +62,7 @@ module SeriesChartComponent =
        | LogError of exn
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
-       | SetUnit of GraphUnit
+       | SetUnit of SeriesGraphUnit
        | UnloadData
        | LoadData of TimeseriesData
    
@@ -146,7 +163,7 @@ module SeriesChartComponent =
                 ]
             
             let units =
-                forEach getUnionCases<GraphUnit> ^fun (case, _, tag) ->
+                forEach getUnionCases<SeriesGraphUnit> ^fun (case, _, tag) ->
                     option [attr.value tag] [text case.Name]
             
             let fromInput =
@@ -158,7 +175,7 @@ module SeriesChartComponent =
                     dispatch (SetDateTo(stringToDate value))
             
             let parseUnitOrDefault unit = 
-                Option.defaultValue Week <| GraphUnit.FromString unit
+                Option.defaultValue Week <| SeriesGraphUnit.FromString unit
 
             template
                 .FromInput(fromInput)
@@ -199,47 +216,49 @@ module UserDataComponent =
         | LoadChartDataFromService       
         | SeriesChartComponentMessage of SeriesChartComponentMessage
     
-    let update (provider: IRemoteServiceProvider) message (model: SeriesChartComponentModelContainer<UserDataComponentModel>) =       
+    let update (provider: IRemoteServiceProvider)=       
         let chatDataService = provider.GetService<ChatDataService>()
-        match message with
-        | LogError exn ->
-            eprintfn "%O" exn
-            model, []
-        | SetChat chat ->
-            { model with Model = {
-                        model.Model with Chat = chat
-            }}, []
-        | LoadChartDataFromService ->
-            let getUserCountCached =
-                ClientSideCache.getOrCreateAsyncFn chatDataService.GetUserCount (TimeSpan.FromMinutes(5.))
-            model,
-            Cmd.batch [
-                Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
-                Cmd.ofAsync 
-                    getUserCountCached {
-                        Chat = model.Model.Chat 
-                        From = model.SeriesData.FromDateValue
-                        To = model.SeriesData.ToDateValue
-                        Unit = model.SeriesData.Unit
-                    }
-                    (fun data ->
-                        data
-                        |> List.map ^ fun item -> item.Date, item.Count
-                        |> (LoadData >> SeriesChartComponentMessage))
-                    (fun exn -> LogError exn)
-            ]
-        | SeriesChartComponentMessage seriesMessage ->
-           let loadCommand =
-               match seriesMessage with
-               | SetDateFrom fromDate -> Cmd.ofMsg LoadChartDataFromService               
-               | SetDateTo date -> Cmd.ofMsg LoadChartDataFromService
-               | SetUnit unitValue -> Cmd.ofMsg LoadChartDataFromService
-               | _ -> []
-           let (newModel, commands) = SeriesChartComponent.update seriesMessage model
-           newModel, Cmd.batch [
-               loadCommand
-               Cmd.convertSubs SeriesChartComponentMessage commands
-           ]   
+        let getUserCountCached =
+           (chatDataService.GetUserCount, TimeSpan.FromMinutes(5.))
+           ||> ClientSideCache.getOrCreateAsyncFn 
+        fun message model ->
+            match message with
+            | LogError exn ->
+                eprintfn "%O" exn
+                model, []
+            | SetChat chat ->
+                { model with Model = {
+                            model.Model with Chat = chat
+                }}, []
+            | LoadChartDataFromService ->
+                model,
+                Cmd.batch [
+                    Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
+                    Cmd.ofAsync 
+                        getUserCountCached {
+                            Chat = model.Model.Chat 
+                            From = model.SeriesData.FromDateValue
+                            To = model.SeriesData.ToDateValue
+                            Unit = model.SeriesData.Unit.Name
+                        }
+                        (fun data ->
+                            data
+                            |> List.map ^ fun item -> item.Date, item.Count
+                            |> (LoadData >> SeriesChartComponentMessage))
+                        (fun exn -> LogError exn)
+                ]
+            | SeriesChartComponentMessage seriesMessage ->
+               let loadCommand =
+                   match seriesMessage with
+                   | SetDateFrom fromDate -> Cmd.ofMsg LoadChartDataFromService               
+                   | SetDateTo date -> Cmd.ofMsg LoadChartDataFromService
+                   | SetUnit unitValue -> Cmd.ofMsg LoadChartDataFromService
+                   | _ -> []
+               let (newModel, commands) = SeriesChartComponent.update seriesMessage model
+               newModel, Cmd.batch [
+                   loadCommand
+                   Cmd.convertSubs SeriesChartComponentMessage commands
+               ]   
     
     type UserDataComponent() =
         inherit SeriesChartComponent<UserDataComponentModel>(Identificators.usersChartId, "user_data")
