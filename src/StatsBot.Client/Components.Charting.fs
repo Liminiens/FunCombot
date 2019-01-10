@@ -14,7 +14,7 @@ module Identificators =
    let usersChartId = Guid.NewGuid().ToString()
        
 module SeriesChartComponent =  
-   open Remoting.Chat
+   open StatsBot.Client.Components
 
    type TimeseriesChartTemplate = Template<"""frontend/templates/timeseries_chart.html""">
           
@@ -32,6 +32,8 @@ module SeriesChartComponent =
          FromDateMin: DateTime
          FromDateMax: DateTime
          FromDateValue: DateTime
+         DebouncedFromDateValue: Debounce.DelayedModel<DateTime>
+         DebouncedToDateValue: Debounce.DelayedModel<DateTime>
          ToDateMin: DateTime
          ToDateMax: DateTime
          ToDateValue: DateTime
@@ -45,6 +47,10 @@ module SeriesChartComponent =
    type SeriesChartComponentMessage =
        | DoNothing
        | LogError of exn
+       | SearchDateTo of DateTime
+       | DebounceToDate of Debounce.Msg<DateTime>
+       | SearchDateFrom of DateTime
+       | DebounceFromDate of Debounce.Msg<DateTime>
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
        | SetUnit of DateUnit
@@ -71,6 +77,24 @@ module SeriesChartComponent =
        | LogError exn ->
            eprintfn "%O" exn
            model, []
+       | SearchDateTo date ->
+           model, Debounce.inputCmd date DebounceToDate
+       | DebounceToDate msg ->
+           Debounce.updateWithCmd
+               msg
+               DebounceToDate
+               model.SeriesData.DebouncedToDateValue
+               (fun x -> { model with SeriesData = { model.SeriesData with DebouncedToDateValue = x }})
+               (SetDateTo >> Cmd.ofMsg)
+       | SearchDateFrom date ->
+           model, Debounce.inputCmd date DebounceFromDate
+       | DebounceFromDate msg ->
+           Debounce.updateWithCmd
+               msg
+               DebounceFromDate
+               model.SeriesData.DebouncedFromDateValue
+               (fun x -> { model with SeriesData = { model.SeriesData with DebouncedFromDateValue = x }})
+               (SetDateFrom >> Cmd.ofMsg)
        | SetDateFrom fromDate ->
            { model with SeriesData = {
                        model.SeriesData with
@@ -131,6 +155,7 @@ module SeriesChartComponent =
                 concat [
                     text labelText
                     input ["type" => "date";
+                           attr.pattern "[0-9]{4}-[0-9]{2}-[0-9]{2}"
                            attr.value <| dateToString value;
                            attr.min <| dateToString min;
                            attr.max <| dateToString max;
@@ -159,16 +184,16 @@ module SeriesChartComponent =
             
             let fromInput =
                 createDateInput "From:" model.SeriesData.FromDateValue model.SeriesData.FromDateMin model.SeriesData.FromDateMax ^fun value -> 
-                    dispatch (SetDateFrom(stringToDate value))
+                    dispatch (SearchDateFrom(stringToDate value))
             
             let toInput =
                 createDateInput "To:" model.SeriesData.ToDateValue model.SeriesData.ToDateMin model.SeriesData.ToDateMax ^fun value -> 
-                    dispatch (SetDateTo(stringToDate value))
+                    dispatch (SearchDateTo(stringToDate value))
             
             let parseUnitOrDefault unit =
                 unit
                 |> DateUnit.FromString
-                |> Option.defaultValue Day
+                |> Option.defaultValue DayUnit
 
             template
                 .FromInput(fromInput)
@@ -195,15 +220,17 @@ module UserDataComponent =
            
         { Id = id
           IsLoaded = false
+          DebouncedFromDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateFrom
+          DebouncedToDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateTo
           FromDateMin = dateFrom
           FromDateMax = stringToDate "2030-01-01" 
           FromDateValue = dateFrom 
           ToDateMin = dateTo
           ToDateMax = stringToDate "2030-01-01" 
           ToDateValue = dateTo
-          Unit = Week }
+          Unit = DayUnit }
     
-    type UserDataComponentMessage = 
+    type UserDataComponentMessage =
         | LogError of exn
         | SetUserChartChat of Chat 
         | LoadChartDataFromService       
@@ -245,8 +272,12 @@ module UserDataComponent =
                    match seriesMessage with
                    | SetDateFrom _             
                    | SetDateTo _
-                   | SetUnit _ -> 
-                        Cmd.ofMsg LoadChartDataFromService
+                   | SetUnit _ ->
+                        //helps with redraw for some reason
+                        Cmd.ofAsync
+                            Async.Sleep 20
+                            (fun _ -> LoadChartDataFromService)
+                            (fun e -> LogError e)
                    | _ -> []
                let (newModel, commands) = SeriesChartComponent.update seriesMessage model
                newModel, Cmd.batch [

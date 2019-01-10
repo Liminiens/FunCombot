@@ -4,6 +4,7 @@ module Chat =
     open System
     open Microsoft.Extensions.Logging
     open Bolero.Remoting
+    open StatsBot.Client.Types
     open StatsBot.Client.Remoting.Chat
 
     type ChatDataServiceHandler(logger: ILogger<ChatDataServiceHandler>) =
@@ -29,9 +30,9 @@ module Chat =
                                 yield { Date = startDate; Count = random.Next(10, 1000) }
                                 startDate <- 
                                     match data.Unit with
-                                    | Week -> startDate.AddDays(7.)
-                                    | Day -> startDate.AddDays(1.)
-                                    | Month -> startDate.AddMonths(1)
+                                    | WeekUnit -> startDate.AddDays(7.)
+                                    | DayUnit -> startDate.AddDays(1.)
+                                    | MonthUnit -> startDate.AddMonths(1)
                         ]
                     return data
                 }

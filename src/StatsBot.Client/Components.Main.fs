@@ -74,7 +74,6 @@ module MainComponent =
                                     Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                                 | Users ->
                                     []
-                                | _ -> []
                         ]
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
@@ -97,7 +96,6 @@ module MainComponent =
                                 ]
                             | Users ->
                                 Cmd.ofMsg <| usersMessage (SetUsersInfoChat chat)
-                            | _ -> []
                         Cmd.batch [
                             Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
                             loadCommand

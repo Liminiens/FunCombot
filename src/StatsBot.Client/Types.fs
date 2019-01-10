@@ -42,21 +42,20 @@ type Chat =
         | "fsharp-chat"  -> Some Fsharpchat
         | "ms-stack-jobs" -> Some MicrosoftStackJobs
         | _ -> None
-
-             
+            
 type DateUnit =
-  | Day
-  | Week
-  | Month
+  | DayUnit
+  | WeekUnit
+  | MonthUnit
   member this.Name =
       match this with
-      | Day -> "day"
-      | Week -> "week"
-      | Month -> "month"
+      | DayUnit -> "day"
+      | WeekUnit -> "week"
+      | MonthUnit -> "month"
   
   static member FromString(str) =
        match str with
-       | "day" -> Some Day
-       | "week" -> Some Week
-       | "month" -> Some Month
+       | "day" -> Some DayUnit
+       | "week" -> Some WeekUnit
+       | "month" -> Some MonthUnit
        | _ -> None

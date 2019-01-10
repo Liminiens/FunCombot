@@ -50,7 +50,7 @@ export function drawChart(guid: guid, bindTo: string, data: IChartConfiguration)
     chartCache.set(guid, c3.generate(convertToC3(bindTo, data)));
 }
 
-export function loadData(guid: guid, data: Array<IColumnData>): void  {
+export function loadData(guid: guid, data: Array<IColumnData>): void {
     const chart = chartCache.get(guid);
     if (chart !== undefined) {
         chart.load({
