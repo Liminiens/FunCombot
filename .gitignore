@@ -7,7 +7,7 @@ paket.exe
 paket.bootstrapper.exe
 .paket/.store
 
-src/FunCombot.Client/wwwroot/scripts
+src/StatsBot.Client/wwwroot/scripts
 
 # User-specific files
 *.suo

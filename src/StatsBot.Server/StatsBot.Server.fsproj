@@ -10,7 +10,7 @@
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\FunCombot.Client\FunCombot.Client.fsproj" />
+    <ProjectReference Include="..\StatsBot.Client\StatsBot.Client.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
