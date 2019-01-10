@@ -65,8 +65,8 @@ module MainComponent =
                         match section with
                         | Overview ->
                             Cmd.batch [
-                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                                 Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
+                                Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                             ]
                         | _ -> 
                             Cmd.ofMsg (SetPage(Chat(model.Header.Chat.UrlName, section.UrlName)))
@@ -91,8 +91,8 @@ module MainComponent =
                                 ]
                             | _ -> []
                         Cmd.batch [
-                            loadCommand
                             Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
+                            loadCommand
                         ]              
                 { model with Header = HeaderComponent.update message model.Header }, command
             

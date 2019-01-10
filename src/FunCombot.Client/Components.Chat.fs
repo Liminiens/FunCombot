@@ -7,6 +7,15 @@ open FunCombot.Client
 open FunCombot.Client.Types
 open FunCombot.Client.Components
 
+module UsersComponent =
+    type TableTemplate = Template<"""frontend/templates/users_table.html""">
+    
+    type UsersComponent() =
+        inherit ElmishComponent<unit, unit>()
+        
+        let tableTemplate = TableTemplate()
+        
+        override this.View model dispatch = div [] []
 
 module ChatComponent =
     [<AutoOpen>]
@@ -129,8 +138,8 @@ module ChatComponent =
                             dispatch (ChartComponentMessage(SeriesChartComponentMessage message))                   
                     )
                     .Elt()
-
-    type MainTemplate = Template<"""frontend/templates/main.html""">
+    
+    type ChatMainTemplate = Template<"""frontend/templates/main.html""">
     
     type SectionName =
         | Overview
@@ -166,7 +175,7 @@ module ChatComponent =
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
         
-        let mainTemplate = MainTemplate()
+        let chatMainTemplate = ChatMainTemplate()
         
         override this.View model dispatch =
             let menu =
@@ -188,7 +197,7 @@ module ChatComponent =
                             h1 ["class" => "ui header"] [text "Users"]
                         ]
                         
-            mainTemplate
+            chatMainTemplate
                 .SectionMenu(menu)
                 .Content(content)
                 .Elt()
