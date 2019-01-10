@@ -13,7 +13,6 @@ module Chat =
         override __.Handler = {
             GetChatData = fun name -> 
                 async {
-                    logger.LogInformation("GetChatData called")
                     return {
                         Description = name.DisplayName
                         TotalUsers = random.Next(10000)
@@ -23,7 +22,6 @@ module Chat =
                 }
             GetUserCount = fun data ->
                 async {
-                    logger.LogInformation("GetUserCount called")
                     let data =
                         [
                             let mutable startDate = data.From
@@ -31,10 +29,9 @@ module Chat =
                                 yield { Date = startDate; Count = random.Next(10, 1000) }
                                 startDate <- 
                                     match data.Unit with
-                                    | "week" -> startDate.AddDays(7.)
-                                    | "day" -> startDate.AddDays(1.)
-                                    | "month" -> startDate.AddMonths(1)
-                                    | _ -> startDate.AddDays(1.)
+                                    | Week -> startDate.AddDays(7.)
+                                    | Day -> startDate.AddDays(1.)
+                                    | Month -> startDate.AddMonths(1)
                         ]
                     return data
                 }

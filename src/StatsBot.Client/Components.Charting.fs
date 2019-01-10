@@ -14,6 +14,8 @@ module Identificators =
    let usersChartId = Guid.NewGuid().ToString()
        
 module SeriesChartComponent =  
+   open Remoting.Chat
+
    type TimeseriesChartTemplate = Template<"""frontend/templates/timeseries_chart.html""">
           
    let dateToString (date: DateTime) = 
@@ -21,23 +23,6 @@ module SeriesChartComponent =
 
    let stringToDate (str: string) =
        DateTime.ParseExact(str, "yyyy-MM-dd", null)
-             
-   type SeriesGraphUnit =
-      | Day
-      | Week
-      | Month
-      member this.Name =
-          match this with
-          | Day -> "day"
-          | Week -> "week"
-          | Month -> "month"
-          
-      static member FromString(str) =
-           match str with
-           | "day" -> Some Day
-           | "week" -> Some Week
-           | "month" -> Some Month
-           | _ -> None
    
    type TimeseriesData = list<(DateTime * int)>
    
@@ -50,7 +35,7 @@ module SeriesChartComponent =
          ToDateMin: DateTime
          ToDateMax: DateTime
          ToDateValue: DateTime
-         Unit: SeriesGraphUnit }
+         Unit: DateUnit }
       
    type SeriesChartComponentModelContainer<'T> = {
        SeriesData: SeriesChartComponentModel
@@ -62,12 +47,12 @@ module SeriesChartComponent =
        | LogError of exn
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
-       | SetUnit of SeriesGraphUnit
+       | SetUnit of DateUnit
        | UnloadData
        | LoadData of TimeseriesData
    
    let unloadData id = 
-        Charting.unloadData id ["x";"users"]
+        Charting.unloadData id ["x"; "users"]
 
    let loadData id (data: TimeseriesData) =
         let (dates, values) =
@@ -91,7 +76,10 @@ module SeriesChartComponent =
                        model.SeriesData with
                            FromDateValue = fromDate
                            ToDateMin = fromDate
-                           ToDateValue = if fromDate > model.SeriesData.ToDateValue then fromDate.AddMonths(1) else model.SeriesData.ToDateValue }
+                           ToDateValue =
+                               if fromDate > model.SeriesData.ToDateValue then
+                                   fromDate.AddMonths(1)
+                               else model.SeriesData.ToDateValue }
            }, []                         
        | SetDateTo date ->
            { model with SeriesData = {
@@ -163,7 +151,7 @@ module SeriesChartComponent =
                 ]
             
             let units =
-                forEach getUnionCases<SeriesGraphUnit> ^fun (case, _, tag) ->
+                forEach getUnionCases<DateUnit> ^fun (case, _, tag) ->
                     option [yield attr.value case.Name;
                             if model.SeriesData.Unit = case then yield attr.selected true] [
                         text case.Name
@@ -179,7 +167,7 @@ module SeriesChartComponent =
             
             let parseUnitOrDefault unit =
                 unit
-                |> SeriesGraphUnit.FromString
+                |> DateUnit.FromString
                 |> Option.defaultValue Day
 
             template
@@ -244,7 +232,7 @@ module UserDataComponent =
                             Chat = model.ChartContainer.Chat 
                             From = model.SeriesData.FromDateValue
                             To = model.SeriesData.ToDateValue
-                            Unit = model.SeriesData.Unit.Name
+                            Unit = model.SeriesData.Unit
                         }
                         (fun data ->
                             data

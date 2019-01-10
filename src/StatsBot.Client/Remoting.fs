@@ -14,8 +14,8 @@ module Chat =
     }
     
     type UserCount = { Date: DateTime; Count: int }
-    
-    type UserCountInfo = { Chat: Chat; From: DateTime; To: DateTime; Unit: string }
+
+    type UserCountInfo = { Chat: Chat; From: DateTime; To: DateTime; Unit: DateUnit }
     
     type ChatDataService =        
         { GetChatData: Chat -> Async<ChatData>
