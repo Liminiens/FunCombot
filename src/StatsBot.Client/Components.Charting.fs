@@ -265,7 +265,7 @@ module UserDataComponent =
                                   ToDateMin = maxMinDate
                                   ToDateMax = settings.DateMax
                                   ToDateValue = maxMinDate 
-                 } }, [] 
+                 } }, Cmd.ofMsg LoadUserChartData 
             | LoadUserChartSettings ->
                 model,
                 Cmd.batch [
