@@ -14,11 +14,14 @@ module Chat =
     }
     
     type UserCount = { Date: DateTime; Count: int }
+    
+    type UserChartSettings = { DateMin: DateTime; DateMax: DateTime }
 
     type UserCountInfo = { Chat: Chat; From: DateTime; To: DateTime; Unit: DateUnit }
     
     type ChatDataService =        
         { GetChatData: Chat -> Async<ChatData>
+          GetUserChartSettings: Chat -> Async<UserChartSettings>
           GetUserCount: UserCountInfo -> Async<list<UserCount>> }
 
         interface IRemoteService with

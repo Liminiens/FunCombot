@@ -232,15 +232,20 @@ module UserDataComponent =
     
     type UserDataComponentMessage =
         | LogError of exn
-        | SetUserChartChat of Chat 
-        | LoadChartDataFromService       
+        | SetUserChartChat of Chat
+        | SetUserChartSettings of UserChartSettings
+        | LoadUserChartSettings
+        | LoadUserChartData
         | SeriesChartComponentMessage of SeriesChartComponentMessage
-    
+     
     let update (provider: IRemoteServiceProvider)=       
         let chatDataService = provider.GetService<ChatDataService>()
         let getUserCountCached =
            (chatDataService.GetUserCount, TimeSpan.FromMinutes(5.))
            ||> ClientSideCache.getOrCreateAsyncFn 
+        let getChartSettingsCached =
+           (chatDataService.GetUserChartSettings, TimeSpan.FromMinutes(5.))
+           ||> ClientSideCache.getOrCreateAsyncFn
         fun message model ->
             match message with
             | LogError exn ->
@@ -250,7 +255,26 @@ module UserDataComponent =
                 { model with ChartContainer = {
                             model.ChartContainer with Chat = chat
                 } }, []
-            | LoadChartDataFromService ->
+            | SetUserChartSettings settings ->
+                let maxMinDate = settings.DateMin.AddMonths(1)
+                { model with SeriesData = {
+                              model.SeriesData with 
+                                  FromDateMin = settings.DateMin
+                                  FromDateMax = settings.DateMax
+                                  FromDateValue = settings.DateMin
+                                  ToDateMin = maxMinDate
+                                  ToDateMax = settings.DateMax
+                                  ToDateValue = maxMinDate 
+                 } }, [] 
+            | LoadUserChartSettings ->
+                model,
+                Cmd.batch [
+                    Cmd.ofAsync 
+                        getChartSettingsCached model.ChartContainer.Chat 
+                        (fun data -> SetUserChartSettings data)
+                        (fun exn -> LogError exn)
+                ]
+            | LoadUserChartData ->
                 model,
                 Cmd.batch [
                     Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
@@ -273,15 +297,15 @@ module UserDataComponent =
                    | SetDateFrom _             
                    | SetDateTo _
                    | SetUnit _ ->
-                        //helps with redraw for some reason
+                        //helps with redraw while rendering is not a separate phase
                         Cmd.ofAsync
-                            Async.Sleep 20
-                            (fun _ -> LoadChartDataFromService)
+                            Async.Sleep 50
+                            (fun _ -> LoadUserChartData)
                             (fun e -> LogError e)
                    | _ -> []
                let (newModel, commands) = SeriesChartComponent.update seriesMessage model
                newModel, Cmd.batch [
-                   Cmd.convertSubs SeriesChartComponentMessage commands
+                   Cmd.wrapAndBatchSub SeriesChartComponentMessage commands
                    loadCommand
                ]   
     

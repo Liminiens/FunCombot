@@ -21,6 +21,13 @@ module Chat =
                         ChangeInTotalUsersForWeek = random.Next(-1000, 1000)
                     }
                 }
+            GetUserChartSettings = fun name -> 
+                async {
+                    return {
+                        DateMin = DateTime.Now
+                        DateMax = DateTime.Now.AddYears(15)
+                    }
+                }
             GetUserCount = fun data ->
                 async {
                     let data =

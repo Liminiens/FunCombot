@@ -80,7 +80,7 @@ module MainComponent =
                 let command =
                     Cmd.batch [
                         sectionChangeCommand
-                        Cmd.convertSubs ChatComponentMessage commands
+                        Cmd.wrapAndBatchSub ChatComponentMessage commands
                     ]
                 { model with Chat = newModel }, command
             | HeaderComponentMessage message ->

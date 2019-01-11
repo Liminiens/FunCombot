@@ -131,13 +131,14 @@ module ChatComponent =
             match message with
             | ChartComponentMessage message ->
                 let (newModel, commands) = UserDataComponent.update provider message model.UserData
-                { model with UserData = newModel }, convertSubs ChartComponentMessage commands
+                { model with UserData = newModel }, wrapAndBatchSub ChartComponentMessage commands
             | DescriptionComponentMessage message ->
                 let (newModel, commands) = DescriptionComponent.update provider message model.Description
-                { model with Description = newModel }, convertSubs DescriptionComponentMessage commands           
+                { model with Description = newModel }, wrapAndBatchSub DescriptionComponentMessage commands           
             | LoadOverviewData chat->
                 model, Cmd.batch [
-                    ChartComponentMessage(LoadChartDataFromService) |> Cmd.ofMsg
+                    ChartComponentMessage(LoadUserChartSettings) |> Cmd.ofMsg
+                    ChartComponentMessage(LoadUserChartData) |> Cmd.ofMsg
                     DescriptionComponentMessage(LoadDescriptionDataFromService chat) |> Cmd.ofMsg
                 ]
             
@@ -191,10 +192,10 @@ module ChatComponent =
             { model with CurrentSection = name }, []
         | UsersComponentMessage message ->
             let (newModel, commands) = UsersComponent.update provider message model.Users
-            { model with Users = newModel }, Cmd.convertSubs UsersComponentMessage commands
+            { model with Users = newModel }, Cmd.wrapAndBatchSub UsersComponentMessage commands
         | OverviewComponentMessage message ->
             let (newModel, commands) = OverviewComponent.update provider message model.Overview
-            { model with Overview = newModel }, Cmd.convertSubs OverviewComponentMessage commands      
+            { model with Overview = newModel }, Cmd.wrapAndBatchSub OverviewComponentMessage commands      
     
     type ChatComponent() =
         inherit ElmishComponent<ChatComponentModel, ChatComponentMessage>()
