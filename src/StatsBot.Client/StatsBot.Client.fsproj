@@ -17,6 +17,11 @@
     <Compile Include="Components.Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <Watch Include="**\*.html" />
+  </ItemGroup>
+  
   <ItemGroup>
     <Content Include="frontend\styles\index.scss" />
     <Content Include="frontend\styles\_charting.scss" />
