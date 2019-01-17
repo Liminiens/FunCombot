@@ -1,24 +1,26 @@
-<table class="ui selectable striped celled padded table">
-    <thead>
+<div>
+    ${Content}
+    <template id="UsersTable">
+        <table class="ui selectable striped celled padded table">
+            <thead>
+            <tr>
+                <th>User</th>
+                <th>Messages</th>
+                <th>Stickers</th>
+                <th>Media</th>
+            </tr>
+            </thead>
+            <tbody>
+            ${Users}
+            </tbody>
+        </table>
+    </template>
+    <template id="User">
         <tr>
-            <th>User</th>
-            <th>Messages</th>
-            <th>Stickers</th>
-            <th>Media</th>
+            <td>${FirstName} - ${LastName} - ${Username}</td>
+            <td>${MessageCount}</td>
+            <td>${StickerCount}</td>
+            <td>${MediaCount}</td>
         </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>John</td>
-            <td>No Action</td>
-            <td>None</td>
-            <td>None</td>
-        </tr>
-        <tr>
-            <td>Jamie</td>
-            <td>Approved</td>
-            <td>Requires call</td>
-            <td>None</td>
-        </tr>
-    </tbody>
-</table>
+    </template>
+</div>

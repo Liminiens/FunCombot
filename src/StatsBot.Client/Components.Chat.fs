@@ -8,6 +8,9 @@ open StatsBot.Client.Types
 open StatsBot.Client.Components
 
 module UsersComponent =
+    open StatsBot.Client.Components
+    open StatsBot.Client.Remoting.Chat
+
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
     
     type UsersComponentMessage =
@@ -15,27 +18,50 @@ module UsersComponent =
     
     type UsersComponentModel = {
         Chat: Chat
+        Users: DynamicModel<ChatUser list>
     }
     
-    let update (provider: IRemoteServiceProvider) message model =
-        match message with
-        | SetUsersInfoChat chat ->
-            { model with Chat = chat }, []
+    let update (provider: IRemoteServiceProvider) =
+        let chatDataService = provider.GetService<ChatDataService>()
+        fun message model ->
+            match message with
+            | SetUsersInfoChat chat ->
+                { model with Chat = chat }, []
     
     type UsersComponent() =
         inherit ElmishComponent<UsersComponentModel, UsersComponentMessage>()
         
-        let tableTemplate = TableTemplate()
+        let createUserRow (model: ChatUser) =
+            TableTemplate
+                .User()
+                .FirstName(model.FirstName)
+                .LastName(model.LastName)
+                .Username(model.Username)
+                .MessageCount(string model.MessageCount)
+                .StickerCount(string model.StickersCount)
+                .MediaCount(string model.MediaCount)
+                .Elt()
         
         override this.View model dispatch =
-            tableTemplate.Elt()
+            match model.Users with
+            | Model users ->
+                let table =
+                    TableTemplate.UsersTable()
+                        .Users(forEach users createUserRow)
+                        .Elt()
+                TableTemplate()
+                    .Content(table)
+                    .Elt()
+            | NotLoaded ->
+                TableTemplate()
+                    .Content(CommonNodes.loadingDiv)
+                    .Elt()
 
 module ChatComponent =
     open UsersComponent
 
     [<AutoOpen>]
     module DescriptionComponent = 
-        open System
         open StatsBot.Client.Remoting.Chat
     
         type DescriptionTemplate = Template<"""frontend/templates/chat_overview_description.html""">

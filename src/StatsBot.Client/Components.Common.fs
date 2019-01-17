@@ -10,6 +10,10 @@ module CommonNodes =
     let loadingIcon = i ["class" => "spinner loading icon"] []
 
     let loadingDiv = div ["class" => "ui active centered loader"] []
+
+type DynamicModel<'T> =
+    | NotLoaded
+    | Model of 'T
         
 [<RequireQualifiedAccess>]
 module Debounce =

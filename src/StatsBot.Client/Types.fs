@@ -8,10 +8,6 @@ type ApplicationPage =
     | [<EndPoint("/chat")>]
       Chat of name: string * section: string    
 
-type DynamicModel<'T> =
-    | NotLoaded
-    | Model of 'T
-
 type Chat =
     | Fsharpchat
     | Dotnetruchat

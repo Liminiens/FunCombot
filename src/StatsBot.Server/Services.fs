@@ -43,4 +43,22 @@ module Chat =
                         ]
                     return data
                 }
+            
+            GetChatUsers = fun (chat, page) ->
+                async {
+                    let data = 
+                        [
+                            let mutable i = 1
+                            while i <= page.PageSize do
+                               yield { LastName = sprintf "lastname%i" i
+                                       FirstName = sprintf "firstname%i" i
+                                       Username = sprintf "nickname%i" i
+                                       ImageUrl = sprintf "url%i" i
+                                       MessageCount = random.Next(0, 1000)
+                                       StickersCount = random.Next(0, 1000)
+                                       MediaCount = random.Next(0, 1000) }
+                               i <- i + 1
+                        ]
+                    return data, { page with Total = page.Total + page.PageSize}
+                }
         }

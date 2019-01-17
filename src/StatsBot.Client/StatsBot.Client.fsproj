@@ -19,6 +19,10 @@
   </ItemGroup>
   
   <ItemGroup>
+    <Content Include="frontend\**\*"/>
+  </ItemGroup>
+  
+  <ItemGroup>
     <Watch Include="**\*.html" />
   </ItemGroup>
   

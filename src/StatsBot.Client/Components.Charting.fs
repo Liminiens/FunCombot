@@ -291,7 +291,10 @@ module UserDataComponent =
                    | SetDateFrom _             
                    | SetDateTo _
                    | SetUnit _ ->
-                        //helps with redraw while rendering is not a separate phase
+                        (*
+                            helps with redraw while rendering is not a separate phase
+                            currently it works by accident, there is a lot of redrawing in chart itself
+                        *)
                         Cmd.ofAsync
                             Async.Sleep 50
                             (fun _ -> LoadUserChartData)

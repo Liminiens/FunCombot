@@ -154,6 +154,7 @@ module MainComponent =
                     }
                     Users = {
                         Chat = chatName
+                        Users = NotLoaded
                     }
                 }
             }
