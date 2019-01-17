@@ -240,12 +240,6 @@ module UserDataComponent =
      
     let update (provider: IRemoteServiceProvider)=       
         let chatDataService = provider.GetService<ChatDataService>()
-        let getUserCountCached =
-           (chatDataService.GetUserCount, TimeSpan.FromMinutes(5.))
-           ||> ClientSideCache.getOrCreateAsyncFn 
-        let getChartSettingsCached =
-           (chatDataService.GetUserChartSettings, TimeSpan.FromMinutes(5.))
-           ||> ClientSideCache.getOrCreateAsyncFn
         fun message model ->
             match message with
             | LogError exn ->
@@ -270,7 +264,7 @@ module UserDataComponent =
                 model,
                 Cmd.batch [
                     Cmd.ofAsync 
-                        getChartSettingsCached model.ChartContainer.Chat 
+                        chatDataService.GetUserChartSettings model.ChartContainer.Chat 
                         (fun data -> SetUserChartSettings data)
                         (fun exn -> LogError exn)
                 ]
@@ -279,7 +273,7 @@ module UserDataComponent =
                 Cmd.batch [
                     Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                     Cmd.ofAsync 
-                        getUserCountCached {
+                        chatDataService.GetUserCount {
                             Chat = model.ChartContainer.Chat 
                             From = model.SeriesData.FromDateValue
                             To = model.SeriesData.ToDateValue

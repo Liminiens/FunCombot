@@ -62,9 +62,6 @@ module ChatComponent =
             
         let update (provider: IRemoteServiceProvider) =
             let chatDataService = provider.GetService<ChatDataService>()
-            let getChatDataCached =
-                (chatDataService.GetChatData, (TimeSpan.FromMinutes(5.)))
-                ||> ClientSideCache.getOrCreateAsyncFn
             fun message model ->
                 match message with
                 | LogError exn ->
@@ -77,7 +74,7 @@ module ChatComponent =
                     Cmd.batch [
                         SetDescription(NotLoaded) |> Cmd.ofMsg;
                         Cmd.ofAsync 
-                            getChatDataCached chat
+                            chatDataService.GetChatData chat
                             (fun data ->
                                 Description.FromServiceData(data)
                                 |> (Model >> SetDescription)) 
