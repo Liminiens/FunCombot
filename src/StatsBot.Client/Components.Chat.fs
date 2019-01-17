@@ -8,16 +8,19 @@ open StatsBot.Client.Types
 open StatsBot.Client.Components
 
 module UsersComponent =
-    open StatsBot.Client.Components
     open StatsBot.Client.Remoting.Chat
 
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
     
     type UsersComponentMessage =
+        | LogError of exn
         | SetUsersInfoChat of Chat
+        | LoadTableData
+        | SetTableData of ChatUser list * ChatUserPage
     
     type UsersComponentModel = {
         Chat: Chat
+        Page: ChatUserPage
         Users: DynamicModel<ChatUser list>
     }
     
@@ -25,8 +28,19 @@ module UsersComponent =
         let chatDataService = provider.GetService<ChatDataService>()
         fun message model ->
             match message with
+            | LogError e ->
+                eprintf "%O" e
+                model, []
+            | SetTableData(users, page) ->
+                { model with Users = Model users; Page = page },[]
             | SetUsersInfoChat chat ->
                 { model with Chat = chat }, []
+            | LoadTableData ->
+                model,
+                    Cmd.ofAsync 
+                        chatDataService.GetChatUsers (model.Chat, model.Page)
+                        (fun data -> SetTableData data)
+                        (fun exn -> LogError exn)
     
     type UsersComponent() =
         inherit ElmishComponent<UsersComponentModel, UsersComponentMessage>()

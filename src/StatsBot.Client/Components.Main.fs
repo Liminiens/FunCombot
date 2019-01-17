@@ -58,7 +58,8 @@ module MainComponent =
                     match model.Chat.CurrentSection with
                     | Overview ->
                         Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
-                    | _ -> []
+                    | Users ->
+                        Cmd.ofMsg <| usersMessage LoadTableData
                 model, dataLoadCommand
             | SetPage page ->
                 { model with Page = page }, []
@@ -73,7 +74,7 @@ module MainComponent =
                                 | Overview ->
                                     Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                                 | Users ->
-                                    []
+                                    Cmd.ofMsg <| usersMessage LoadTableData
                         ]
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
@@ -155,6 +156,10 @@ module MainComponent =
                     Users = {
                         Chat = chatName
                         Users = NotLoaded
+                        Page = {
+                            PageSize = 50
+                            Total = 0
+                        }
                     }
                 }
             }
