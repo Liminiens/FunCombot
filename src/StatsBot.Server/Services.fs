@@ -59,6 +59,6 @@ module Chat =
                                        MediaCount = random.Next(0, 1000) }
                                i <- i + 1
                         ]
-                    return data, { page with Total = page.Total + page.PageSize}
+                    return data, { page with Current = page.Current + page.PageSize}
                 }
         }

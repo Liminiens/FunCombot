@@ -33,6 +33,7 @@ module Chat =
     type ChatUserPage = {
         PageSize: int
         Total: int
+        Current: int
     }
     
     type ChatUser = {
@@ -52,4 +53,4 @@ module Chat =
           GetChatUsers: Chat * ChatUserPage -> Async<list<ChatUser> * ChatUserPage> }
 
         interface IRemoteService with
-            member __.BasePath = "/chat-data"   
+            member __.BasePath = "/chat-data"

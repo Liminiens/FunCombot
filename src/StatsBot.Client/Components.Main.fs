@@ -159,6 +159,7 @@ module MainComponent =
                         Page = {
                             PageSize = 50
                             Total = 0
+                            Current = 0
                         }
                     }
                 }
