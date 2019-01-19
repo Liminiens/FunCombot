@@ -34,6 +34,7 @@ module Chat =
         PageSize: int
         Total: int
         Current: int
+        PageNumber: int
     }
     
     type ChatUser = {

@@ -158,6 +158,7 @@ module MainComponent =
                             PageSize = 50
                             Total = 0
                             Current = 0
+                            PageNumber = 1
                         }
                     }
                 }

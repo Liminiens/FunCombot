@@ -24,7 +24,6 @@ module SeriesChartComponent =
    
    type SeriesChartComponentModel =
        { ElementId: string
-         IsLoaded: bool
          FromDateMin: DateTime
          FromDateMax: DateTime
          FromDateValue: DateTime
@@ -45,7 +44,6 @@ module SeriesChartComponent =
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
        | SetUnit of DateUnit
-       | DestroyChart
        | DrawChart of TimeseriesData
 
    let drawChart elementId (data: TimeseriesData) =
@@ -117,9 +115,7 @@ module SeriesChartComponent =
                    loadDataForModel data
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
-           { model with IsLoaded = true }, command
-       | DestroyChart ->
-           { model with IsLoaded = false }, []
+           model, command
            
    type SeriesChartComponent() =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage>()
@@ -144,7 +140,7 @@ module SeriesChartComponent =
         
         override this.View model dispatch =
             let graph =
-                let classes = [yield "ui basic segment chart"; if not model.IsLoaded then yield "loading"]
+                let classes = [yield "ui basic segment chart"]
                 div [attr.id model.ElementId; attr.classes classes] []
             
             let units =
@@ -165,7 +161,7 @@ module SeriesChartComponent =
             let parseUnitOrDefault unit =
                 unit
                 |> DateUnit.FromString
-                |> Option.defaultValue DayUnit
+                |> Option.defaultValue Day
 
             template
                 .FromInput(fromInput)
@@ -186,7 +182,6 @@ module UserDataComponent =
         let dateTo = new DateTime(now.Year, now.Month + 1, 1)
            
         { ElementId = Guid.NewGuid().ToString()
-          IsLoaded = false
           DebouncedFromDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateFrom
           DebouncedToDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateTo
           FromDateMin = dateFrom
@@ -195,7 +190,7 @@ module UserDataComponent =
           ToDateMin = dateTo
           ToDateMax = stringToDate "2030-01-01" 
           ToDateValue = dateTo
-          Unit = DayUnit }
+          Unit = Day }
     
     type UserDataComponentModel = {
         Series: SeriesChartComponentModel
@@ -241,7 +236,6 @@ module UserDataComponent =
             | LoadUserChartData ->
                 model,
                 Cmd.batch [
-                    Cmd.ofMsg (SeriesChartComponentMessage DestroyChart)
                     Cmd.ofAsync 
                         chatDataService.GetUserCount {
                             Chat = model.Chat 

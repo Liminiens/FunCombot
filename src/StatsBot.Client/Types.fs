@@ -40,18 +40,18 @@ type Chat =
         | _ -> None
             
 type DateUnit =
-  | DayUnit
-  | WeekUnit
-  | MonthUnit
+  | Day
+  | Week
+  | Month
   member this.Name =
       match this with
-      | DayUnit -> "day"
-      | WeekUnit -> "week"
-      | MonthUnit -> "month"
+      | Day -> "day"
+      | Week -> "week"
+      | Month -> "month"
   
   static member FromString(str) =
        match str with
-       | "day" -> Some DayUnit
-       | "week" -> Some WeekUnit
-       | "month" -> Some MonthUnit
+       | "day" -> Some Day
+       | "week" -> Some Week
+       | "month" -> Some Month
        | _ -> None

@@ -112,7 +112,7 @@ module ChatComponent =
                 | LoadDescriptionDataFromService chat ->
                     model,
                     Cmd.batch [
-                        SetDescription(NotLoaded) |> Cmd.ofMsg;
+                        SetDescription(NotLoaded) |> Cmd.ofMsg
                         Cmd.ofAsync 
                             chatDataService.GetChatData chat
                             (fun data ->
@@ -136,20 +136,23 @@ module ChatComponent =
                         .Change(CommonNodes.loadingIcon)
                         .Elt()
                 | Model description ->
+                    let changeNode =
+                        let classes = if description.ChangeInTotalUsersForWeek <= 0 then "count-change-minus" else "count-change-plus"
+                        span ["class" => classes] [
+                            description.ChangeInTotalUsersForWeek
+                            |> (string >> text)
+                        ]
                     template
                         .Description(pre [] [text description.Description])
                         .ActiveUsers(span [] [text <| string description.ActiveUsers])
                         .TotalUsers(span [] [text <| string description.TotalUsers])
-                        .Change(span ["class" => if description.ChangeInTotalUsersForWeek <= 0 then "count-change-minus" else "count-change-plus"] [
-                            text <| string description.ChangeInTotalUsersForWeek
-                        ])
+                        .Change(changeNode)
                         .Elt()
                         
     [<AutoOpen>]
     module OverviewComponent = 
         open DescriptionComponent
         open StatsBot.Client.Components.Charting
-        open StatsBot.Client.Components.Charting.SeriesChartComponent
         open StatsBot.Client.Components.Charting.UserDataComponent
         
         type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
@@ -175,7 +178,6 @@ module ChatComponent =
             | LoadOverviewData chat->
                 model, Cmd.batch [
                     UserDataComponentMessage(LoadUserChartSettings) |> Cmd.ofMsg
-                    UserDataComponentMessage(LoadUserChartData) |> Cmd.ofMsg
                     DescriptionComponentMessage(LoadDescriptionDataFromService chat) |> Cmd.ofMsg
                 ]
             

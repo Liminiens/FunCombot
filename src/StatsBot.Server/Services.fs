@@ -37,9 +37,9 @@ module Chat =
                                 yield { Date = startDate; Count = random.Next(10, 1000) }
                                 startDate <- 
                                     match data.Unit with
-                                    | WeekUnit -> startDate.AddDays(7.)
-                                    | DayUnit -> startDate.AddDays(1.)
-                                    | MonthUnit -> startDate.AddMonths(1)
+                                    | Week -> startDate.AddDays(7.)
+                                    | Day -> startDate.AddDays(1.)
+                                    | Month -> startDate.AddMonths(1)
                         ]
                     return data
                 }
@@ -59,6 +59,6 @@ module Chat =
                                        MediaCount = random.Next(0, 1000) }
                                i <- i + 1
                         ]
-                    return data, { page with Current = page.Current + page.PageSize}
+                    return data, { page with Current = page.Current + page.PageSize; PageNumber = page.PageNumber + 1 }
                 }
         }
