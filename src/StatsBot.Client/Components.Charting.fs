@@ -9,11 +9,6 @@ open StatsBot.Client.Types
 open StatsBot.Client.Javascript
 open StatsBot.Client.Javascript.Charting 
 
-[<RequireQualifiedAccess>]
-module Identifiators =
-    let id = Guid.NewGuid().ToString()
-    let elementId = Guid.NewGuid().ToString()
-    
 module SeriesChartComponent =  
    open StatsBot.Client.Components
 
@@ -28,7 +23,7 @@ module SeriesChartComponent =
    type TimeseriesData = list<(DateTime * int)>
    
    type SeriesChartComponentModel =
-       { Id: string
+       { ElementId: string
          IsLoaded: bool
          FromDateMin: DateTime
          FromDateMax: DateTime
@@ -50,21 +45,32 @@ module SeriesChartComponent =
        | SetDateFrom of DateTime
        | SetDateTo of DateTime
        | SetUnit of DateUnit
-       | UnloadData
-       | LoadData of TimeseriesData
-   
-   let unloadData id = 
-        Charting.unloadData id ["x"; "users"]
+       | DestroyChart
+       | DrawChart of TimeseriesData
 
-   let loadData id (data: TimeseriesData) =
+   let drawChart elementId (data: TimeseriesData) =
         let (dates, values) =
             data
             |> List.fold (fun acc (date, value) -> [dateToString date :> obj, value :> obj] @ acc) []
             |> List.unzip
-        Charting.loadData id [
-            { name = "x"; data = dates };
-            { name = "users"; data = values };
-        ];
+        
+        let configuration = {
+            x = "x"
+            columns = [
+                { name = "x"; data = dates };
+                { name = "users"; data = values };
+            ]
+            axis = {
+                   x = {
+                       ``type`` = "timeseries"
+                       tick = {
+                            format = "%Y-%m-%d"
+                       }
+                   }
+           }
+        }
+            
+        Charting.createChart elementId configuration
 
    let update message model =
        match message with
@@ -104,40 +110,20 @@ module SeriesChartComponent =
            { model with ToDateValue = date }, []
        | SetUnit unitValue ->
            { model with Unit = unitValue }, []
-       | LoadData data ->        
+       | DrawChart data ->        
            let command =
-               let loadDataForModel = loadData model.Id
+               let loadDataForModel = drawChart model.ElementId
                Cmd.ofAsync
                    loadDataForModel data
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
            { model with IsLoaded = true }, command
-       | UnloadData ->
-           let command =
-               Cmd.ofAsync
-                   unloadData model.Id
-                   (fun _ -> DoNothing)
-                   (fun e -> LogError e)
-           { model with IsLoaded = false }, command
+       | DestroyChart ->
+           { model with IsLoaded = false }, []
            
    type SeriesChartComponent() =
         inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage>()
         
-        let id = Identifiators.id
-        let elementId = Identifiators.elementId
-        
-        let configuration = {
-            x = "x"
-            columns = []
-            axis = {
-                   x = {
-                       ``type`` = "timeseries"
-                       tick = {
-                            format = "%Y-%m-%d"
-                       }
-                   }
-           }
-        }
         let template = TimeseriesChartTemplate()
                   
         let createDateInput labelText value min max dispatch = 
@@ -156,14 +142,10 @@ module SeriesChartComponent =
                 ]       
             ]
         
-        override this.OnAfterRender() =
-            Charting.createChart id elementId configuration
-        
         override this.View model dispatch =
             let graph =
-                let classes = [yield "ui basic segment"; yield "chart"; if not model.IsLoaded then yield "loading"]
-                div [attr.id elementId; attr.classes classes] [
-                ]
+                let classes = [yield "ui basic segment chart"; if not model.IsLoaded then yield "loading"]
+                div [attr.id model.ElementId; attr.classes classes] []
             
             let units =
                 forEach getUnionCases<DateUnit> ^fun (case, _, tag) ->
@@ -193,9 +175,6 @@ module SeriesChartComponent =
                 .Graph(graph)
                 .Elt()
         
-        override this.Finalize() =
-            Charting.destroyChart id
-        
 module UserDataComponent =
     open StatsBot.Client.Components
     open StatsBot.Client.Remoting.Chat
@@ -206,7 +185,7 @@ module UserDataComponent =
         let dateFrom = new DateTime(now.Year, now.Month, 1)
         let dateTo = new DateTime(now.Year, now.Month + 1, 1)
            
-        { Id = Identifiators.id
+        { ElementId = Guid.NewGuid().ToString()
           IsLoaded = false
           DebouncedFromDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateFrom
           DebouncedToDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateTo
@@ -262,7 +241,7 @@ module UserDataComponent =
             | LoadUserChartData ->
                 model,
                 Cmd.batch [
-                    Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
+                    Cmd.ofMsg (SeriesChartComponentMessage DestroyChart)
                     Cmd.ofAsync 
                         chatDataService.GetUserCount {
                             Chat = model.Chat 
@@ -273,7 +252,7 @@ module UserDataComponent =
                         (fun data ->
                             data
                             |> List.map ^ fun item -> item.Date, item.Count
-                            |> (LoadData >> SeriesChartComponentMessage))
+                            |> (DrawChart >> SeriesChartComponentMessage))
                         (fun exn -> LogError exn)
                 ]
             | SeriesChartComponentMessage seriesMessage ->
@@ -282,14 +261,7 @@ module UserDataComponent =
                    | SetDateFrom _             
                    | SetDateTo _
                    | SetUnit _ ->
-                        (*
-                            helps with redraw while rendering is not a separate phase
-                            currently it works by accident, there is a lot of redrawing in chart itself
-                        *)
-                        Cmd.ofAsync
-                            Async.Sleep 50
-                            (fun _ -> LoadUserChartData)
-                            (fun e -> LogError e)
+                       Cmd.ofMsg LoadUserChartData
                    | _ -> []
                let (newModel, commands) = SeriesChartComponent.update seriesMessage model.Series
                {model with Series = newModel}, Cmd.batch [
@@ -301,8 +273,6 @@ module UserDataComponent =
         inherit ElmishComponent<UserDataComponentModel, UserDataComponentMessage>()
         
         override this.View model dispatch =
-            div [] [
-                ecomp<SeriesChartComponent,_,_> model.Series ^fun message -> 
-                    dispatch (SeriesChartComponentMessage message)
-            ]
+            ecomp<SeriesChartComponent,_,_> model.Series ^fun message -> 
+                dispatch (SeriesChartComponentMessage message)
             

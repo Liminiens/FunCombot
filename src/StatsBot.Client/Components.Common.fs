@@ -6,6 +6,7 @@ open Bolero.Remoting
 type IRemoteServiceProvider = 
     abstract GetService<'T when 'T :> IRemoteService> : unit -> 'T
 
+[<RequireQualifiedAccess>]
 module CommonNodes =
     let loadingIcon = i ["class" => "spinner loading icon"] []
 

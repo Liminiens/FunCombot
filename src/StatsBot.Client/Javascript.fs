@@ -59,20 +59,8 @@ module Charting =
         axis: IAxis
     }
         
-    let createChart (id: string) bindTo (data: IChartConfiguration) =
-        let bindTo = sprintf "#%s" bindTo
+    let createChart bindTo (data: IChartConfiguration) =
+        let bindTo = sprintf """[id="%s"]""" bindTo
         
         getChartFunctionName "drawChart"
-        |> jsInvokeIgnore [|id; bindTo; data|]
-    
-    let loadData (id: string) (data: list<IColumnData>) =
-        getChartFunctionName "loadData"
-        |> jsInvoke<unit> [|id; data|]
-    
-    let unloadData (id: string) (columnNames: list<string>) =
-        getChartFunctionName "unloadData"
-        |> jsInvoke<unit> [|id; columnNames|]
-        
-    let destroyChart (id: string) =
-        getChartFunctionName "destroyChart"
-        |> jsInvokeIgnore [|id|]
+        |> jsInvoke<unit> [|bindTo; data|]
