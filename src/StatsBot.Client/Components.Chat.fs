@@ -155,27 +155,27 @@ module ChatComponent =
         type ChatOverviewTemplate = Template<"""frontend/templates/chat_overview.html""">
     
         type OverviewComponentModel = {
-            UserData: SeriesChartComponentModelContainer<UserDataComponentModel>
+            UserData: UserDataComponentModel
             Description: DescriptionModel
         }
         
         type OverviewComponentMessage =
-            | ChartComponentMessage of UserDataComponentMessage
+            | UserDataComponentMessage of UserDataComponentMessage
             | DescriptionComponentMessage of DescriptionComponentMessage
             | LoadOverviewData of Chat
         
         let update (provider: IRemoteServiceProvider) message model =
             match message with
-            | ChartComponentMessage message ->
+            | UserDataComponentMessage message ->
                 let (newModel, commands) = UserDataComponent.update provider message model.UserData
-                { model with UserData = newModel }, wrapAndBatchSub ChartComponentMessage commands
+                { model with UserData = newModel }, wrapAndBatchSub UserDataComponentMessage commands
             | DescriptionComponentMessage message ->
                 let (newModel, commands) = DescriptionComponent.update provider message model.Description
                 { model with Description = newModel }, wrapAndBatchSub DescriptionComponentMessage commands           
             | LoadOverviewData chat->
                 model, Cmd.batch [
-                    ChartComponentMessage(LoadUserChartSettings) |> Cmd.ofMsg
-                    ChartComponentMessage(LoadUserChartData) |> Cmd.ofMsg
+                    UserDataComponentMessage(LoadUserChartSettings) |> Cmd.ofMsg
+                    UserDataComponentMessage(LoadUserChartData) |> Cmd.ofMsg
                     DescriptionComponentMessage(LoadDescriptionDataFromService chat) |> Cmd.ofMsg
                 ]
             
@@ -192,7 +192,7 @@ module ChatComponent =
                     )
                     .UsersCountGraph(
                         ecomp<UserDataComponent,_,_> model.UserData ^fun message -> 
-                            dispatch (ChartComponentMessage(SeriesChartComponentMessage message))                   
+                            dispatch (UserDataComponentMessage message)                   
                     )
                     .Elt()
     

@@ -92,7 +92,7 @@ module MainComponent =
                             match model.Chat.CurrentSection with
                             | Overview ->
                                 Cmd.batch [
-                                    Cmd.ofMsg <| overviewMessage (ChartComponentMessage(SetUserChartChat chat))
+                                    Cmd.ofMsg <| overviewMessage (UserDataComponentMessage(SetUserChartChat chat))
                                     Cmd.ofMsg <| overviewMessage (LoadOverviewData chat)
                                 ]
                             | Users ->
@@ -144,10 +144,8 @@ module MainComponent =
                     CurrentSection = sectionName
                     Overview = {
                         UserData = {
-                            SeriesData = UserDataComponent.getDefaultModel Identificators.usersChartId
-                            ChartContainer = {
-                                Chat = chatName
-                            }
+                            Series = UserDataComponent.getDefaultModel
+                            Chat = chatName
                         }
                         Description = {
                             Data = NotLoaded

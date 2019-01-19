@@ -10,9 +10,10 @@ open StatsBot.Client.Javascript
 open StatsBot.Client.Javascript.Charting 
 
 [<RequireQualifiedAccess>]
-module Identificators =
-   let usersChartId = Guid.NewGuid().ToString()
-       
+module Identifiators =
+    let id = Guid.NewGuid().ToString()
+    let elementId = Guid.NewGuid().ToString()
+    
 module SeriesChartComponent =  
    open StatsBot.Client.Components
 
@@ -38,11 +39,6 @@ module SeriesChartComponent =
          ToDateMax: DateTime
          ToDateValue: DateTime
          Unit: DateUnit }
-      
-   type SeriesChartComponentModelContainer<'T> = {
-       SeriesData: SeriesChartComponentModel
-       ChartContainer: 'T
-   }
      
    type SeriesChartComponentMessage =
        | DoNothing
@@ -83,8 +79,8 @@ module SeriesChartComponent =
            Debounce.updateWithCmd
                msg
                DebounceToDate
-               model.SeriesData.DebouncedToDateValue
-               (fun x -> { model with SeriesData = { model.SeriesData with DebouncedToDateValue = x }})
+               model.DebouncedToDateValue
+               (fun x -> { model with DebouncedToDateValue = x })
                (SetDateTo >> Cmd.ofMsg)
        | SearchDateFrom date ->
            model, Debounce.inputCmd date DebounceFromDate
@@ -92,49 +88,43 @@ module SeriesChartComponent =
            Debounce.updateWithCmd
                msg
                DebounceFromDate
-               model.SeriesData.DebouncedFromDateValue
-               (fun x -> { model with SeriesData = { model.SeriesData with DebouncedFromDateValue = x }})
+               model.DebouncedFromDateValue
+               (fun x -> { model with DebouncedFromDateValue = x })
                (SetDateFrom >> Cmd.ofMsg)
        | SetDateFrom fromDate ->
-           { model with SeriesData = {
-                       model.SeriesData with
-                           FromDateValue = fromDate
-                           ToDateMin = fromDate
-                           ToDateValue =
-                               if fromDate > model.SeriesData.ToDateValue then
-                                   fromDate.AddMonths(1)
-                               else model.SeriesData.ToDateValue }
+           { model with
+                       FromDateValue = fromDate
+                       ToDateMin = fromDate
+                       ToDateValue =
+                           if fromDate > model.ToDateValue then
+                               fromDate.AddMonths(1)
+                           else model.ToDateValue
            }, []                         
        | SetDateTo date ->
-           { model with SeriesData = {
-                       model.SeriesData with ToDateValue = date
-           } }, []
+           { model with ToDateValue = date }, []
        | SetUnit unitValue ->
-           { model with SeriesData = {
-                       model.SeriesData with Unit = unitValue
-           } }, []
+           { model with Unit = unitValue }, []
        | LoadData data ->        
            let command =
-               let loadDataForModel = loadData model.SeriesData.Id
+               let loadDataForModel = loadData model.Id
                Cmd.ofAsync
                    loadDataForModel data
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
-           { model with SeriesData = {
-                       model.SeriesData with IsLoaded = true
-           } }, command
+           { model with IsLoaded = true }, command
        | UnloadData ->
            let command =
                Cmd.ofAsync
-                   unloadData model.SeriesData.Id
+                   unloadData model.Id
                    (fun _ -> DoNothing)
                    (fun e -> LogError e)
-           { model with SeriesData = {
-                       model.SeriesData with IsLoaded = false
-           } }, command
+           { model with IsLoaded = false }, command
            
-   type SeriesChartComponent<'T>(id: string, elementId: string) =
-        inherit ElmishComponent<SeriesChartComponentModelContainer<'T>, SeriesChartComponentMessage>()
+   type SeriesChartComponent() =
+        inherit ElmishComponent<SeriesChartComponentModel, SeriesChartComponentMessage>()
+        
+        let id = Identifiators.id
+        let elementId = Identifiators.elementId
         
         let configuration = {
             x = "x"
@@ -171,23 +161,23 @@ module SeriesChartComponent =
         
         override this.View model dispatch =
             let graph =
-                let classes = [yield "ui basic segment"; yield "chart"; if not model.SeriesData.IsLoaded then yield "loading"]
+                let classes = [yield "ui basic segment"; yield "chart"; if not model.IsLoaded then yield "loading"]
                 div [attr.id elementId; attr.classes classes] [
                 ]
             
             let units =
                 forEach getUnionCases<DateUnit> ^fun (case, _, tag) ->
                     option [yield attr.value case.Name;
-                            if model.SeriesData.Unit = case then yield attr.selected true] [
+                            if model.Unit = case then yield attr.selected true] [
                         text case.Name
                     ]
             
             let fromInput =
-                createDateInput "From:" model.SeriesData.FromDateValue model.SeriesData.FromDateMin model.SeriesData.FromDateMax ^fun value -> 
+                createDateInput "From:" model.FromDateValue model.FromDateMin model.FromDateMax ^fun value -> 
                     dispatch (SearchDateFrom(stringToDate value))
             
             let toInput =
-                createDateInput "To:" model.SeriesData.ToDateValue model.SeriesData.ToDateMin model.SeriesData.ToDateMax ^fun value -> 
+                createDateInput "To:" model.ToDateValue model.ToDateMin model.ToDateMax ^fun value -> 
                     dispatch (SearchDateTo(stringToDate value))
             
             let parseUnitOrDefault unit =
@@ -199,7 +189,7 @@ module SeriesChartComponent =
                 .FromInput(fromInput)
                 .ToInput(toInput)
                 .Units(units)
-                .SelectedUnit(model.SeriesData.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
+                .SelectedUnit(model.Unit.Name, fun unit -> dispatch (SetUnit(parseUnitOrDefault unit)))
                 .Graph(graph)
                 .Elt()
         
@@ -211,14 +201,12 @@ module UserDataComponent =
     open StatsBot.Client.Remoting.Chat
     open SeriesChartComponent
     
-    type UserDataComponentModel = { Chat: Chat }
-    
-    let getDefaultModel id = 
+    let getDefaultModel = 
         let now = DateTime.Now
         let dateFrom = new DateTime(now.Year, now.Month, 1)
         let dateTo = new DateTime(now.Year, now.Month + 1, 1)
            
-        { Id = id
+        { Id = Identifiators.id
           IsLoaded = false
           DebouncedFromDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateFrom
           DebouncedToDateValue = Debounce.init (TimeSpan.FromMilliseconds 225.) dateTo
@@ -229,6 +217,11 @@ module UserDataComponent =
           ToDateMax = stringToDate "2030-01-01" 
           ToDateValue = dateTo
           Unit = DayUnit }
+    
+    type UserDataComponentModel = {
+        Series: SeriesChartComponentModel
+        Chat: Chat
+    }
     
     type UserDataComponentMessage =
         | LogError of exn
@@ -245,14 +238,10 @@ module UserDataComponent =
             | LogError exn ->
                 eprintfn "%O" exn
                 model, []
-            | SetUserChartChat chat ->
-                { model with ChartContainer = {
-                            model.ChartContainer with Chat = chat
-                } }, []
             | SetUserChartSettings settings ->
                 let maxMinDate = settings.DateMin.AddMonths(1)
-                { model with SeriesData = {
-                              model.SeriesData with 
+                { model with Series = {
+                              model.Series with 
                                   FromDateMin = settings.DateMin
                                   FromDateMax = settings.DateMax
                                   FromDateValue = settings.DateMin
@@ -260,11 +249,13 @@ module UserDataComponent =
                                   ToDateMax = settings.DateMax
                                   ToDateValue = maxMinDate 
                  } }, Cmd.ofMsg LoadUserChartData 
+            | SetUserChartChat chat ->
+                { model with Chat = chat }, []
             | LoadUserChartSettings ->
                 model,
                 Cmd.batch [
                     Cmd.ofAsync 
-                        chatDataService.GetUserChartSettings model.ChartContainer.Chat 
+                        chatDataService.GetUserChartSettings model.Chat 
                         (fun data -> SetUserChartSettings data)
                         (fun exn -> LogError exn)
                 ]
@@ -274,10 +265,10 @@ module UserDataComponent =
                     Cmd.ofMsg (SeriesChartComponentMessage UnloadData)
                     Cmd.ofAsync 
                         chatDataService.GetUserCount {
-                            Chat = model.ChartContainer.Chat 
-                            From = model.SeriesData.FromDateValue
-                            To = model.SeriesData.ToDateValue
-                            Unit = model.SeriesData.Unit
+                            Chat = model.Chat 
+                            From = model.Series.FromDateValue
+                            To = model.Series.ToDateValue
+                            Unit = model.Series.Unit
                         }
                         (fun data ->
                             data
@@ -300,11 +291,18 @@ module UserDataComponent =
                             (fun _ -> LoadUserChartData)
                             (fun e -> LogError e)
                    | _ -> []
-               let (newModel, commands) = SeriesChartComponent.update seriesMessage model
-               newModel, Cmd.batch [
+               let (newModel, commands) = SeriesChartComponent.update seriesMessage model.Series
+               {model with Series = newModel}, Cmd.batch [
                    Cmd.wrapAndBatchSub SeriesChartComponentMessage commands
                    loadCommand
                ]   
     
     type UserDataComponent() =
-        inherit SeriesChartComponent<UserDataComponentModel>(Identificators.usersChartId, "user_data")
+        inherit ElmishComponent<UserDataComponentModel, UserDataComponentMessage>()
+        
+        override this.View model dispatch =
+            div [] [
+                ecomp<SeriesChartComponent,_,_> model.Series ^fun message -> 
+                    dispatch (SeriesChartComponentMessage message)
+            ]
+            
