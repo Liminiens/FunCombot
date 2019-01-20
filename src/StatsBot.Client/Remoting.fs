@@ -32,8 +32,7 @@ module Chat =
     
     type ChatUserPage = {
         PageSize: int
-        Total: int
-        Current: int
+        TotalPages: int
         PageNumber: int
     }
     

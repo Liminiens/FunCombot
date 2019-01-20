@@ -60,7 +60,15 @@ module MainComponent =
                         Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
                     | Users ->
                         Cmd.ofMsg <| usersMessage LoadTableData
-                model, dataLoadCommand
+                let pageCommand =
+                    match model.Page with
+                    | ChatUsers(_, pageNumber) ->
+                        Cmd.ofMsg <| usersMessage (SetTablePage pageNumber)
+                    | _ -> []    
+                model, Cmd.batch[
+                    pageCommand
+                    dataLoadCommand
+                ]
             | SetPage page ->
                 { model with Page = page }, []
             | ChatComponentMessage message ->
@@ -74,7 +82,12 @@ module MainComponent =
                    | ChangeSection Users ->
                        Cmd.batch [
                            Cmd.ofMsg <| SetPage(ChatUsers(model.Header.Chat.UrlName, model.Chat.Users.Page.PageNumber))
-                           Cmd.ofMsg <| usersMessage LoadTableData       
+                           Cmd.ofMsg <| usersMessage LoadTableData
+                       ]
+                   | UsersComponentMessage(SetTablePage(pageNumber)) ->
+                       Cmd.batch [
+                           Cmd.ofMsg <| SetPage(ChatUsers(model.Header.Chat.UrlName, pageNumber))
+                           Cmd.ofMsg <| usersMessage LoadTableData
                        ]
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
@@ -161,9 +174,8 @@ module MainComponent =
                         Users = NotLoaded
                         Page = {
                             PageSize = 50
-                            Total = 0
-                            Current = 0
                             PageNumber = 1
+                            TotalPages = 0
                         }
                     }
                 }

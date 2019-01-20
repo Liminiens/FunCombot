@@ -8,6 +8,7 @@ open StatsBot.Client.Types
 open StatsBot.Client.Components
 
 module UsersComponent =
+    open System
     open StatsBot.Client.Remoting.Chat
 
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
@@ -15,6 +16,8 @@ module UsersComponent =
     type UsersComponentMessage =
         | LogError of exn
         | SetUsersInfoChat of Chat
+        | SetTablePage of int
+        | SetTablePageSize of int
         | LoadTableData
         | SetTableData of ChatUser list * ChatUserPage
     
@@ -31,6 +34,10 @@ module UsersComponent =
             | LogError e ->
                 eprintf "%O" e
                 model, []
+            | SetTablePageSize size ->
+                { model with Page = { model.Page with PageSize = size } }, []
+            | SetTablePage pageNumber ->
+                { model with Page = { model.Page with PageNumber = pageNumber } }, []
             | SetTableData(users, page) ->
                 { model with Users = Model users; Page = page },[]
             | SetUsersInfoChat chat ->
@@ -45,6 +52,52 @@ module UsersComponent =
     type UsersComponent() =
         inherit ElmishComponent<UsersComponentModel, UsersComponentMessage>()
         
+        let createPageControlItem pageNumber currentPageNumber dispatch =
+            let classes = [yield "item"; if pageNumber = currentPageNumber then yield "active"]
+            a [
+               attr.classes classes;
+               on.click ^ fun data ->
+                   if pageNumber <> currentPageNumber then
+                       dispatch (SetTablePage pageNumber)] [
+                text <| string pageNumber
+            ] 
+        
+        let createPaginatonControl (model: UsersComponentModel) dispatch =
+            let pageCount =
+                Math.Ceiling((float (model.Page.TotalPages * model.Page.PageSize)) / (float model.Page.PageSize))
+                |> int
+            let printDots = model.Page.TotalPages > 14
+            concat [
+                yield a ["class" => "icon item";
+                         on.click ^ fun data ->
+                             if model.Page.PageNumber - 1 >= 1 then
+                                 dispatch (SetTablePage(model.Page.PageNumber - 1))] [
+                    i ["class" => "left chevron icon"] []
+                ]
+                if not printDots then
+                    yield forEach [1 .. pageCount] ^fun pageNumber ->
+                        createPageControlItem pageNumber model.Page.PageNumber dispatch
+                else
+                    let endSectionPage = model.Page.TotalPages - 3
+                    
+                    yield forEach [1 .. 4] ^fun pageNumber ->
+                        createPageControlItem pageNumber model.Page.PageNumber dispatch
+                    if model.Page.PageNumber > 4 && model.Page.PageNumber < endSectionPage then
+                        yield a [ "class" => "item"] [ text ".."]
+                        yield createPageControlItem model.Page.PageNumber model.Page.PageNumber dispatch
+                        yield a [ "class" => "item"] [ text ".."]
+                    else
+                        yield a [ "class" => "item"] [ text ".."]
+                    yield forEach [endSectionPage .. model.Page.TotalPages] ^fun pageNumber ->
+                        createPageControlItem pageNumber model.Page.PageNumber dispatch  
+                yield a ["class" => "icon item";
+                         on.click ^ fun data ->
+                             if not (model.Page.PageNumber + 1 > model.Page.TotalPages) then
+                                 dispatch (SetTablePage(model.Page.PageNumber + 1))] [
+                    i ["class" => "right chevron icon"] []
+                ]
+            ]
+            
         let createUserRow (model: ChatUser) =
             TableTemplate
                 .User()
@@ -56,14 +109,19 @@ module UsersComponent =
                 .MediaCount(string model.MediaCount)
                 .Elt()
         
+        let createUserTable (model: ChatUser list) (page: ChatUserPage) =
+            forEach model createUserRow
+        
         override this.View model dispatch =
             match model.Users with
             | Model users ->
                 let table =
                     TableTemplate.UsersTable()
                         .Users(forEach users createUserRow)
+                        .PagingControl(createPaginatonControl model dispatch)
                         .Elt()
                 TableTemplate()
+                    .SelectedPageSize(string model.Page.PageSize, fun size -> size |> (int >> SetTablePageSize) |> dispatch)
                     .Content(table)
                     .Elt()
             | NotLoaded ->

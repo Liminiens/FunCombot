@@ -48,8 +48,8 @@ module Chat =
                 async {
                     let data = 
                         [
-                            let mutable i = 1
-                            while i <= page.PageSize do
+                            let mutable i = ((page.PageNumber - 1) * page.PageSize)
+                            while i <= (page.PageNumber * page.PageSize) do
                                yield { LastName = sprintf "lastname%i" i
                                        FirstName = sprintf "firstname%i" i
                                        Username = sprintf "nickname%i" i
@@ -59,6 +59,9 @@ module Chat =
                                        MediaCount = random.Next(0, 1000) }
                                i <- i + 1
                         ]
-                    return data, { page with Current = page.Current + page.PageSize; PageNumber = page.PageNumber }
+                    let totalPages = 
+                        Math.Ceiling(float (1200 / page.PageSize))
+                        |> int
+                    return data, { page with PageNumber = page.PageNumber; TotalPages = totalPages }
                 }
         }
