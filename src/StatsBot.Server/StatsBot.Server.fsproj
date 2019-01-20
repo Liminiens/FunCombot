@@ -12,5 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="..\StatsBot.Client\StatsBot.Client.fsproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Watch Include="..\StatsBot.Client\frontend\**\*.html" />
+  </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

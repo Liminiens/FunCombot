@@ -226,29 +226,23 @@ module UserDataComponent =
             | SetUserChartChat chat ->
                 { model with Chat = chat }, []
             | LoadUserChartSettings ->
-                model,
-                Cmd.batch [
-                    Cmd.ofAsync 
-                        chatDataService.GetUserChartSettings model.Chat 
-                        (fun data -> SetUserChartSettings data)
-                        (fun exn -> LogError exn)
-                ]
+                model, Cmd.ofAsync 
+                    chatDataService.GetUserChartSettings model.Chat 
+                    (fun data -> SetUserChartSettings data)
+                    (fun exn -> LogError exn)
             | LoadUserChartData ->
-                model,
-                Cmd.batch [
-                    Cmd.ofAsync 
-                        chatDataService.GetUserCount {
-                            Chat = model.Chat 
-                            From = model.Series.FromDateValue
-                            To = model.Series.ToDateValue
-                            Unit = model.Series.Unit
-                        }
-                        (fun data ->
-                            data
-                            |> List.map ^ fun item -> item.Date, item.Count
-                            |> (DrawChart >> SeriesChartComponentMessage))
-                        (fun exn -> LogError exn)
-                ]
+                model, Cmd.ofAsync 
+                    chatDataService.GetUserCount {
+                        Chat = model.Chat 
+                        From = model.Series.FromDateValue
+                        To = model.Series.ToDateValue
+                        Unit = model.Series.Unit
+                    }
+                    (fun data ->
+                        data
+                        |> List.map ^ fun item -> item.Date, item.Count
+                        |> (DrawChart >> SeriesChartComponentMessage))
+                    (fun exn -> LogError exn)
             | SeriesChartComponentMessage seriesMessage ->
                let loadCommand =
                    match seriesMessage with

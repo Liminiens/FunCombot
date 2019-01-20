@@ -22,9 +22,5 @@
     <Content Include="frontend\**\*"/>
   </ItemGroup>
   
-  <ItemGroup>
-    <Watch Include="**\*.html" />
-  </ItemGroup>
-  
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
