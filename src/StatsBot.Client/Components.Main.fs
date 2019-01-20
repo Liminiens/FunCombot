@@ -66,16 +66,16 @@ module MainComponent =
             | ChatComponentMessage message ->
                 let sectionChangeCommand =
                    match message with
-                   | ChangeSection section ->
+                   | ChangeSection Overview ->
                         Cmd.batch [
-                            yield Cmd.ofMsg <| SetPage(Chat(model.Header.Chat.UrlName, section.UrlName))
-                            yield
-                                match section with
-                                | Overview ->
-                                    Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)
-                                | Users ->
-                                    Cmd.ofMsg <| usersMessage LoadTableData
+                            Cmd.ofMsg <| SetPage(ChatOverview model.Header.Chat.UrlName)
+                            Cmd.ofMsg <| overviewMessage (LoadOverviewData model.Header.Chat)     
                         ]
+                   | ChangeSection Users ->
+                       Cmd.batch [
+                           Cmd.ofMsg <| SetPage(ChatUsers(model.Header.Chat.UrlName, model.Chat.Users.Page.PageNumber))
+                           Cmd.ofMsg <| usersMessage LoadTableData       
+                       ]
                    | _ -> []
                 let (newModel, commands) = ChatComponent.update provider message model.Chat
                 let command =
@@ -88,18 +88,21 @@ module MainComponent =
                 let command =
                    match message with
                     | ChangeChat chat ->
-                        let loadCommand = 
+                        let sectionCommands = 
                             match model.Chat.CurrentSection with
                             | Overview ->
                                 Cmd.batch [
+                                    Cmd.ofMsg (SetPage(ChatOverview(chat.UrlName)))
                                     Cmd.ofMsg <| overviewMessage (UserDataComponentMessage(SetUserChartChat chat))
                                     Cmd.ofMsg <| overviewMessage (LoadOverviewData chat)
                                 ]
                             | Users ->
-                                Cmd.ofMsg <| usersMessage (SetUsersInfoChat chat)
+                                Cmd.batch[
+                                    Cmd.ofMsg <| SetPage(ChatUsers(chat.UrlName, model.Chat.Users.Page.PageNumber))
+                                    Cmd.ofMsg <| usersMessage (SetUsersInfoChat chat)
+                                ]
                         Cmd.batch [
-                            Cmd.ofMsg (SetPage(Chat(chat.UrlName, model.Chat.CurrentSection.UrlName)))
-                            loadCommand
+                            sectionCommands
                         ]              
                 { model with Header = HeaderComponent.update message model.Header }, command
             
@@ -126,12 +129,14 @@ module MainComponent =
         
         let getRouteData() =
             match getCurrentRoute() with
-            | Some(SetPage(page & Chat(chat, section))) ->
+            | Some(SetPage(page & ChatOverview(chat))) ->
                 let chatName = Option.defaultValue Fsharpchat (Chat.FromString(chat))
-                let sectionName = Option.defaultValue Overview (SectionName.FromString(section))
-                page, chatName, sectionName
+                page, chatName, Overview
+            | Some(SetPage(page & ChatUsers(chat, pageNumber))) ->
+                let chatName = Option.defaultValue Fsharpchat (Chat.FromString(chat))
+                page, chatName, Users
             | _ ->
-                Chat(Fsharpchat.UrlName, Overview.UrlName), Fsharpchat, Overview
+                ChatUsers(Fsharpchat.UrlName, 1), Fsharpchat, Overview
 
         let createInitModel () =                             
             let (page, chatName, sectionName) = getRouteData()            

@@ -5,8 +5,10 @@ open Bolero
 type ApplicationPage =
     | [<EndPoint("/")>]
       Home
-    | [<EndPoint("/chat")>]
-      Chat of name: string * section: string    
+    | [<EndPoint("/overview")>]
+      ChatOverview of chat: string
+    | [<EndPoint("/users")>]
+      ChatUsers of chat: string * page: int   
 
 type Chat =
     | Fsharpchat

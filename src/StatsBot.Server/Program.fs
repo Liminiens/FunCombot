@@ -1,4 +1,5 @@
 namespace StatsBot.Server
+#nowarn "0067"
 
 open System
 open Serilog
