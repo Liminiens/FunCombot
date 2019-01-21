@@ -16,8 +16,9 @@ module UsersComponent =
     type UsersComponentMessage =
         | LogError of exn
         | SetUsersInfoChat of Chat
-        | SetTablePage of int
+        | SetTablePageNumber of int
         | SetTablePageSize of int
+        | UnloadTable
         | LoadTableData
         | SetTableData of ChatUser list * ChatUserPage
     
@@ -35,13 +36,15 @@ module UsersComponent =
                 eprintf "%O" e
                 model, []
             | SetTablePageSize size ->
-                { model with Page = { model.Page with PageSize = size } }, []
-            | SetTablePage pageNumber ->
+                { model with Page = { model.Page with PageSize = size; PageNumber = 1 } }, Cmd.ofMsg LoadTableData
+            | SetTablePageNumber pageNumber ->
                 { model with Page = { model.Page with PageNumber = pageNumber } }, []
             | SetTableData(users, page) ->
                 { model with Users = Model users; Page = page },[]
             | SetUsersInfoChat chat ->
                 { model with Chat = chat }, []
+            | UnloadTable ->
+                { model with Users = NotLoaded }, []
             | LoadTableData ->
                 model,
                     Cmd.ofAsync 
@@ -58,7 +61,7 @@ module UsersComponent =
                attr.classes classes;
                on.click ^ fun data ->
                    if pageNumber <> currentPageNumber then
-                       dispatch (SetTablePage pageNumber)] [
+                       dispatch (SetTablePageNumber pageNumber)] [
                 text <| string pageNumber
             ] 
         
@@ -71,7 +74,7 @@ module UsersComponent =
                 yield a ["class" => "icon item";
                          on.click ^ fun data ->
                              if model.Page.PageNumber - 1 >= 1 then
-                                 dispatch (SetTablePage(model.Page.PageNumber - 1))] [
+                                 dispatch (SetTablePageNumber(model.Page.PageNumber - 1))] [
                     i ["class" => "left chevron icon"] []
                 ]
                 if not printDots then
@@ -93,7 +96,7 @@ module UsersComponent =
                 yield a ["class" => "icon item";
                          on.click ^ fun data ->
                              if not (model.Page.PageNumber + 1 > model.Page.TotalPages) then
-                                 dispatch (SetTablePage(model.Page.PageNumber + 1))] [
+                                 dispatch (SetTablePageNumber(model.Page.PageNumber + 1))] [
                     i ["class" => "right chevron icon"] []
                 ]
             ]

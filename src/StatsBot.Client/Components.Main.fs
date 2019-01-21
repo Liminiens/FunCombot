@@ -62,8 +62,8 @@ module MainComponent =
                         Cmd.ofMsg <| usersMessage LoadTableData
                 let pageCommand =
                     match model.Page with
-                    | ChatUsers(_, pageNumber) ->
-                        Cmd.ofMsg <| usersMessage (SetTablePage pageNumber)
+                    | ChatUsers _ ->
+                        Cmd.ofMsg <| usersMessage (SetTablePageNumber 1)
                     | _ -> []    
                 model, Cmd.batch[
                     pageCommand
@@ -84,7 +84,7 @@ module MainComponent =
                            Cmd.ofMsg <| SetPage(ChatUsers(model.Header.Chat.UrlName, model.Chat.Users.Page.PageNumber))
                            Cmd.ofMsg <| usersMessage LoadTableData
                        ]
-                   | UsersComponentMessage(SetTablePage(pageNumber)) ->
+                   | UsersComponentMessage(SetTablePageNumber(pageNumber)) ->
                        Cmd.batch [
                            Cmd.ofMsg <| SetPage(ChatUsers(model.Header.Chat.UrlName, pageNumber))
                            Cmd.ofMsg <| usersMessage LoadTableData
@@ -113,6 +113,8 @@ module MainComponent =
                                 Cmd.batch[
                                     Cmd.ofMsg <| SetPage(ChatUsers(chat.UrlName, model.Chat.Users.Page.PageNumber))
                                     Cmd.ofMsg <| usersMessage (SetUsersInfoChat chat)
+                                    Cmd.ofMsg <| usersMessage UnloadTable
+                                    Cmd.ofMsg <| usersMessage LoadTableData
                                 ]
                         Cmd.batch [
                             sectionCommands
