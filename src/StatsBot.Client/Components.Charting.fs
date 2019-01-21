@@ -27,8 +27,8 @@ module SeriesChartComponent =
          FromDateMin: DateTime
          FromDateMax: DateTime
          FromDateValue: DateTime
-         DebouncedFromDateValue: Debounce.DelayedModel<DateTime>
-         DebouncedToDateValue: Debounce.DelayedModel<DateTime>
+         DebouncedFromDateValue: Debounce.Model<DateTime>
+         DebouncedToDateValue: Debounce.Model<DateTime>
          ToDateMin: DateTime
          ToDateMax: DateTime
          ToDateValue: DateTime

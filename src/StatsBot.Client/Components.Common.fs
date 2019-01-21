@@ -21,7 +21,7 @@ module Debounce =
     open Elmish
     open System
     
-    type DelayedModel<'a> =
+    type Model<'a> =
         { Delay : TimeSpan
           Input : 'a * DateTime
           Output : 'a
@@ -45,7 +45,7 @@ module Debounce =
             (fun () -> msg)
             (fun _ -> msg)
     
-    let private updateInternal msg model : DelayedModel<'a> * Cmd<Msg<'a>> =
+    let private updateInternal msg model : Model<'a> * Cmd<Msg<'a>> =
         match msg with
         | Input value ->
             { model with Input = value, DateTime.Now; OutputDone = false }, delayCmd model.TimeUntilOutput TryOutput
