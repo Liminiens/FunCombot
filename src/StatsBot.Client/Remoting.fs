@@ -46,8 +46,10 @@ module Chat =
         MediaCount: int
     }
     
+    type DescriptionChat = { Chat: Chat }
+    
     type ChatDataService =        
-        { GetChatData: Chat -> Async<ChatData>
+        { GetChatDescription: DescriptionChat -> Async<ChatData>
           GetUserChartSettings: Chat -> Async<UserChartSettings>
           GetUserCount: UserCountInfo -> Async<list<UserCount>>
           GetChatUsers: Chat * ChatUserPage -> Async<list<ChatUser> * ChatUserPage> }

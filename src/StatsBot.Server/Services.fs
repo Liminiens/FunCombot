@@ -12,8 +12,9 @@ module Chat =
         let random = new Random()
 
         override __.Handler = {
-            GetChatData = fun name -> 
+            GetChatDescription = fun data -> 
                 async {
+                    let name = data.Chat
                     return {
                         Description = name.DisplayName
                         TotalUsers = random.Next(10000)

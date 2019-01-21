@@ -30,6 +30,8 @@ module UsersComponent =
     
     let update (provider: IRemoteServiceProvider) =
         let chatDataService = provider.GetService<ChatDataService>()
+        let cachedGetChatUsers =
+            chatDataService.GetChatUsers |> ClientCache.cacheFn
         fun message model ->
             match message with
             | LogError e ->
@@ -48,7 +50,7 @@ module UsersComponent =
             | LoadTableData ->
                 model,
                     Cmd.ofAsync 
-                        chatDataService.GetChatUsers (model.Chat, model.Page)
+                        cachedGetChatUsers (model.Chat, model.Page)
                         (fun data -> SetTableData data)
                         (fun exn -> LogError exn)
     
@@ -163,6 +165,8 @@ module ChatComponent =
             
         let update (provider: IRemoteServiceProvider) =
             let chatDataService = provider.GetService<ChatDataService>()
+            let cachedGetChatDescription =
+                chatDataService.GetChatDescription |> ClientCache.cacheFn
             fun message model ->
                 match message with
                 | LogError exn ->
@@ -175,7 +179,7 @@ module ChatComponent =
                     Cmd.batch [
                         SetDescription(NotLoaded) |> Cmd.ofMsg
                         Cmd.ofAsync 
-                            chatDataService.GetChatData chat
+                            cachedGetChatDescription { Chat = chat }
                             (fun data ->
                                 Description.FromServiceData(data)
                                 |> (Model >> SetDescription)) 

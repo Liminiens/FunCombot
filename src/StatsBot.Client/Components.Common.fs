@@ -15,6 +15,25 @@ module CommonNodes =
 type DynamicModel<'T> =
     | NotLoaded
     | Model of 'T
+
+[<RequireQualifiedAccess>]
+module ClientCache =
+    open System.Collections.Concurrent
+    let private store = ConcurrentDictionary<obj, obj>()
+    
+    type AsyncCache<'T,'TResult>  = ('T -> Async<'TResult>) -> 'T -> Async<'TResult>
+    
+    let cacheFn: AsyncCache<'T, 'TResult> =
+        fun f ->
+            fun x -> async {
+                match store.TryGetValue x with
+                | true, result -> return result :?> 'TResult
+                | false, _ ->
+                    let! result = f x
+                    store.TryAdd(x, result) |> ignore
+                    return result
+            }
+
         
 [<RequireQualifiedAccess>]
 module Debounce =

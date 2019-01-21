@@ -207,6 +207,10 @@ module UserDataComponent =
      
     let update (provider: IRemoteServiceProvider)=       
         let chatDataService = provider.GetService<ChatDataService>()
+        let cachedGetUserChartSettings =
+            chatDataService.GetUserChartSettings |> ClientCache.cacheFn
+        let cachedGetUserCount =
+            chatDataService.GetUserCount |> ClientCache.cacheFn
         fun message model ->
             match message with
             | LogError exn ->
@@ -227,12 +231,12 @@ module UserDataComponent =
                 { model with Chat = chat }, []
             | LoadUserChartSettings ->
                 model, Cmd.ofAsync 
-                    chatDataService.GetUserChartSettings model.Chat 
+                    cachedGetUserChartSettings model.Chat 
                     (fun data -> SetUserChartSettings data)
                     (fun exn -> LogError exn)
             | LoadUserChartData ->
                 model, Cmd.ofAsync 
-                    chatDataService.GetUserCount {
+                    cachedGetUserCount {
                         Chat = model.Chat 
                         From = model.Series.FromDateValue
                         To = model.Series.ToDateValue
