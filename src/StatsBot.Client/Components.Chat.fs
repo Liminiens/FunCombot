@@ -12,7 +12,18 @@ module UsersComponent =
     open StatsBot.Client.Remoting.Chat
 
     type TableTemplate = Template<"""frontend/templates/users_table.html""">
+       
+    type SortingType = 
+        | NoSorting
+        | Asc
+        | Desc
     
+    type TableColumn =
+        | UserColumn
+        | MessagesColumn
+        | StickersColumn
+        | MediaColumn
+
     type UsersComponentMessage =
         | LogError of exn
         | SetUsersInfoChat of Chat
@@ -21,7 +32,7 @@ module UsersComponent =
         | UnloadTable
         | LoadTableData
         | SetTableData of ChatUser list * ChatUserPage
-    
+
     type UsersComponentModel = {
         Chat: Chat
         Page: ChatUserPage

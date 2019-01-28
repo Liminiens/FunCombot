@@ -12,11 +12,6 @@ module JSRuntimeExt =
     let jsInvoke<'T> args (FunctionName(func)) =
         JSRuntime.Current.InvokeAsync<'T>(func, args)
         |> Async.AwaitTask
-        
-    let jsInvokeIgnore args func =
-        jsInvoke<obj> args func
-        |> Async.Ignore
-        |> Async.Start
     
     let jsInvokeUnit<'T> func =
         jsInvoke<'T> [||] func
