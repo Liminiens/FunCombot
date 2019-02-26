@@ -1,2 +1,3 @@
-HttpToSocks5Proxy
-Telegram.Bot
+group Bot
+    HttpToSocks5Proxy
+    Telegram.Bot

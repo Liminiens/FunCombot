@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26124.0
+VisualStudioVersion = 15.0.28307.421
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{B356FE43-BEAF-40B2-BAAC-BC93E461E796}"
 	ProjectSection(SolutionItems) = preProject
@@ -14,7 +14,11 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "StatsBot.Server", "src\Stat
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "StatsBot.Client", "src\StatsBot.Client\StatsBot.Client.fsproj", "{9D3F296D-322A-463A-B940-191AB0A13164}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StatsBot.Bot", "src\StatsBot.Bot\StatsBot.Bot.csproj", "{67564B20-9073-4AB7-96D8-86688DB386C9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StatsBot.Bot", "src\StatsBot.Bot\StatsBot.Bot.csproj", "{67564B20-9073-4AB7-96D8-86688DB386C9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StatsBot.DataAccess", "src\StatsBot.DataAccess\StatsBot.DataAccess.csproj", "{BF8A046C-4A6C-4461-B45A-D18A178587EB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StatsBot.Migrations", "src\StatsBot.Migrations\StatsBot.Migrations.csproj", "{DD5DED5C-C492-4425-9127-C9F82124F54A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +38,14 @@ Global
 		{67564B20-9073-4AB7-96D8-86688DB386C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67564B20-9073-4AB7-96D8-86688DB386C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{67564B20-9073-4AB7-96D8-86688DB386C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF8A046C-4A6C-4461-B45A-D18A178587EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF8A046C-4A6C-4461-B45A-D18A178587EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF8A046C-4A6C-4461-B45A-D18A178587EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF8A046C-4A6C-4461-B45A-D18A178587EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD5DED5C-C492-4425-9127-C9F82124F54A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD5DED5C-C492-4425-9127-C9F82124F54A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD5DED5C-C492-4425-9127-C9F82124F54A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD5DED5C-C492-4425-9127-C9F82124F54A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -42,6 +54,8 @@ Global
 		{F05D13D5-5E89-4068-9E6A-F9EFC8988CAA} = {87F6C079-CBD7-4866-BDEB-CBDEA9E51D2A}
 		{9D3F296D-322A-463A-B940-191AB0A13164} = {87F6C079-CBD7-4866-BDEB-CBDEA9E51D2A}
 		{67564B20-9073-4AB7-96D8-86688DB386C9} = {87F6C079-CBD7-4866-BDEB-CBDEA9E51D2A}
+		{BF8A046C-4A6C-4461-B45A-D18A178587EB} = {87F6C079-CBD7-4866-BDEB-CBDEA9E51D2A}
+		{DD5DED5C-C492-4425-9127-C9F82124F54A} = {87F6C079-CBD7-4866-BDEB-CBDEA9E51D2A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8CFD6033-FB8D-48BE-9628-9D83DC023CAB}
